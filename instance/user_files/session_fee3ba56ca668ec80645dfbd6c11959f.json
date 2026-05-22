@@ -1,0 +1,21 @@
+{
+    "input": {
+        "miao": {
+            "domain": [
+                0,
+                20
+            ],
+            "terms": [
+                {
+                    "term_name": "bau",
+                    "function_type": "Triangolare",
+                    "params": {
+                        "a": 1,
+                        "b": 3,
+                        "c": 4
+                    }
+                }
+            ]
+        }
+    }
+}

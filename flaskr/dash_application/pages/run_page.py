@@ -1,0 +1,256 @@
+from dash import dcc, html
+import dash_bootstrap_components as dbc
+
+
+def layout() -> html.Div:
+    return html.Div([
+        dcc.Store(id='dataset-store', storage_type='session'),
+        dcc.Store(id='selected-k-store', storage_type='session'),
+        dcc.Store(id='nmf-results-store', storage_type='session'),
+
+        dcc.Download(id="download-w-matrix"),
+        dcc.Download(id="download-h-matrix"),
+        dcc.Download(id="download-clusters"),
+
+        dbc.Row(
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader(
+                        html.H4("Step 3: Run Final NMF", className="card-title mb-0"),
+                        className="card-header-gradient"
+                    ),
+
+                    dbc.CardBody([
+                        html.P(
+                            "Run the final NMF analysis using the selected value of k and the desired configuration.",
+                            className="text-muted mb-4"
+                        ),
+
+                        dbc.Alert(
+                            "Selected k will be displayed here.",
+                            id='selected-k-display',
+                            color="light",
+                            className="mb-4"
+                        ),
+
+                        dbc.Row([
+                            dbc.Col([
+                                html.H5("Clustering Algorithm", className="mb-3"),
+                                dcc.Dropdown(
+                                    id='final-clustering',
+                                    options=[
+                                        {'label': 'Argmax', 'value': 'argmax'},
+                                        {'label': 'K-Means', 'value': 'kmeans'},
+                                        {'label': 'Fuzzy C-Means', 'value': 'fcm'},
+                                    ],
+                                    value='kmeans'
+                                ),
+                            ], md=4),
+
+                            dbc.Col([
+                                html.H5("Initialization Method", className="mb-3"),
+                                dcc.Dropdown(
+                                    id='final-init',
+                                    options=[
+                                        {'label': 'Random', 'value': 'random'},
+                                        {'label': 'NNDSVD', 'value': 'nndsvd'},
+                                    ],
+                                    value='random'
+                                ),
+                            ], md=4),
+
+                            dbc.Col([
+                                html.H5("NMF Algorithm", className="mb-3"),
+                                dcc.Dropdown(
+                                    id='final-nmf',
+                                    options=[
+                                        {'label': 'Standard NMF', 'value': 'nmf_standard'},
+                                    ],
+                                    value='nmf_standard'
+                                ),
+                            ], md=4),
+                        ], className="mb-4"),
+
+                        html.Div(
+                            dbc.Button(
+                                "Run Final NMF",
+                                id='run-final-nmf',
+                                color='primary',
+                                className="px-4"
+                            ),
+                            className="d-flex justify-content-center mb-2"
+                        ),
+
+                        html.Div(
+                            id="run-nmf-warning",
+                            className="mt-2"
+                        ),
+
+                        html.H5("Results", className="mb-3 mt-4"),
+                        dbc.Card(
+                            dbc.CardBody([
+                                html.Div(
+                                    dcc.Tabs(
+                                        id="final-results-tabs",
+                                        value="tab-w",
+                                        colors={
+                                            "border": "#dee2e6",
+                                            "primary": "#52b2cf",
+                                            "background": "#f8f9fa"
+                                        },
+                                        children=[
+
+                                            dcc.Tab(
+                                                label="Matrix W",
+                                                value="tab-w",
+                                                style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "500"
+                                                },
+                                                selected_style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "600",
+                                                    "borderTop": "3px solid #52b2cf",
+                                                    "backgroundColor": "white"
+                                                },
+                                                children=[
+                                                    html.Div([
+                                                        dcc.Graph(
+                                                            id='matrix-w-plot',
+                                                            figure={}
+                                                        )
+                                                    ], className="mt-3")
+                                                ]
+                                            ),
+
+                                            dcc.Tab(
+                                                label="Matrix H",
+                                                value="tab-h",
+                                                style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "500"
+                                                },
+                                                selected_style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "600",
+                                                    "borderTop": "3px solid #52b2cf",
+                                                    "backgroundColor": "white"
+                                                },
+                                                children=[
+                                                    html.Div([
+                                                        dcc.Graph(
+                                                            id='matrix-h-plot',
+                                                            figure={}
+                                                        )
+                                                    ], className="mt-3")
+                                                ]
+                                            ),
+
+                                            dcc.Tab(
+                                                label="Cluster Assignments",
+                                                value="tab-clusters",
+                                                style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "500"
+                                                },
+                                                selected_style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "600",
+                                                    "borderTop": "3px solid #52b2cf",
+                                                    "backgroundColor": "white"
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        id='cluster-output',
+                                                        children=dbc.Alert(
+                                                            "Cluster assignments will be displayed here after execution.",
+                                                            color="light"
+                                                        ),
+                                                        className="mt-3"
+                                                    )
+                                                ]
+                                            ),
+
+                                            dcc.Tab(
+                                                label="Configuration Summary",
+                                                value="tab-final-summary",
+                                                style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "500"
+                                                },
+                                                selected_style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "600",
+                                                    "borderTop": "3px solid #52b2cf",
+                                                    "backgroundColor": "white"
+                                                },
+                                                children=[
+                                                    html.Div(
+                                                        id="final-nmf-summary",
+                                                        className="mt-3"
+                                                    )
+                                                ]
+                                            ),
+                                        ]
+                                    ),
+                                    style={
+                                        "backgroundColor": "#f8f9fa",
+                                        "borderRadius": "8px",
+                                        "padding": "5px"
+                                    }
+                                ),
+
+                                html.Div([
+                                    dbc.Button(
+                                        [html.I(className="fas fa-download me-2"), "Download W"],
+                                        id="download-w-btn",
+                                        color="success",
+                                        className="me-2"
+                                    ),
+                                    dbc.Button(
+                                        [html.I(className="fas fa-download me-2"), "Download H"],
+                                        id="download-h-btn",
+                                        color="secondary",
+                                        className="me-2"
+                                    ),
+                                    dbc.Button(
+                                        [html.I(className="fas fa-download me-2"), "Download Clusters"],
+                                        id="download-clusters-btn",
+                                        color="primary"
+                                    ),
+                                ], className="d-flex justify-content-end mt-3")
+                            ]),
+                            className="mb-4"
+                        ),
+                    ]),
+
+                    dbc.CardFooter(
+                        html.Div([
+                            html.Div([
+                                dbc.Button(
+                                    [html.I(className="fas fa-arrow-left me-2"), "Back"],
+                                    href="/choose-k",
+                                    color="light",
+                                    className="nav-btn me-2"
+                                ),
+                                dbc.Button(
+                                    [html.I(className="fas fa-arrow-right me-2"), "Next"],
+                                    id="run-next-btn",
+                                    color="primary",
+                                    className="nav-btn"
+                                )
+                            ]),
+                            html.Div(
+                                id="run-warning",
+                                className="mt-2"
+                            )
+                        ], className="d-flex flex-column align-items-end"),
+                        className="card-footer-gradient"
+                    )
+                ], className="main-card"),
+                width=10
+            ),
+            justify="center",
+            className="py-4"
+        )
+    ])

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import py_compile; py_compile.compile\\(''flaskr/routes.py'', doraise=True\\) and py_compile.compile\\(''flaskr/dash_application/callbacks.py'', doraise=True\\)\")"
+    ]
+  }
+}

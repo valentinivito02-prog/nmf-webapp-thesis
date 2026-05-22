@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile flaskr/file_handler.py)",
+      "Bash(python -m py_compile flaskr/__init__.py)",
+      "Bash(python -m py_compile flaskr/routes.py)",
+      "Bash(python -m py_compile flaskr/dash_application/callbacks.py)",
+      "Bash(python -m py_compile flaskr/dash_application/pages/classification_page.py)",
+      "Bash(python -m py_compile run.py)",
+      "Bash(python run.py)",
+      "Bash(python3 -c \"import weasyprint\")",
+      "Bash(python3 -c \"import markdown2\")",
+      "Bash(python3 -c \"import reportlab\")",
+      "Bash(brew list)",
+      "Read(//Applications/**)",
+      "Bash(python3 -c \"import markdown; print\\(''ok''\\)\")",
+      "Bash(pip3 show markdown)",
+      "Bash(pip3 install markdown)",
+      "Bash(/Users/macbookpro/Desktop/Tesi_FISDeT-main/venv/bin/python3 -c \"import markdown; print\\(''ok''\\)\")",
+      "Bash(/Users/macbookpro/Progetti/Tesi_FISDeT-dev/venv/bin/python3 -c \"import markdown; print\\(''ok''\\)\")",
+      "Bash(/Users/macbookpro/Progetti/Tesi_FISDeT-dev/venv/bin/pip install markdown --quiet)",
+      "Bash(PYTHON=/Users/macbookpro/Progetti/Tesi_FISDeT-dev/venv/bin/python3)",
+      "Bash(__NEW_LINE_689107a312bbfe6c__ $PYTHON:*)",
+      "Bash(\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --headless=new --disable-gpu --no-sandbox --print-to-pdf=\"/Users/macbookpro/Desktop/documentazione_tecnica_FISDeT.pdf\" --print-to-pdf-no-header \"file:///tmp/documentazione_tecnica.html\")",
+      "Bash(python3 -c \"import py_compile; py_compile.compile\\(''flaskr/dash_application/callbacks.py'', doraise=True\\)\")"
+    ]
+  }
+}
