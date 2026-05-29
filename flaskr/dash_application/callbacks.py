@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import json
 from flaskr import file_handler
-from flaskr.file_handler import save_terms
+from flaskr.file_handler import save_terms, save_explanations
 from datetime import datetime
 import re
 import io
@@ -18,14 +18,13 @@ from dash.exceptions import PreventUpdate
 from .services.giannico_service import run_k_experiments, run_final_nmf, run_fuzzy_from_nmf_results
 from io import BytesIO
 from .ui_components import (
-    dataset_loaded_card,
-    info_card,
-    light_info_card
+dataset_loaded_card,
+info_card,
+light_info_card
 )
-
 def register_callbacks(dash_app):
-    """Registra tutti i callback necessari all'app Dash per la gestione del workflow NMF."""
-
+    """Registra tutti i callback necessari all'app Dash per la gestione del workflow
+    NMF."""
     @dash_app.callback(
         Output("session-store", "data", allow_duplicate=True),
         Input("url", "pathname"),
@@ -39,43 +38,32 @@ def register_callbacks(dash_app):
             return dash.no_update
         session_data["sid"] = str(uuid.uuid4())
         return session_data
-
-        
+    
     def get_dataset_labels(dataset_data):
         if not dataset_data or "data" not in dataset_data:
             return [], []
-
         df = pd.DataFrame(dataset_data["data"])
-
         numeric_columns = df.select_dtypes(include=["number"]).columns.tolist()
         non_numeric_columns = df.select_dtypes(exclude=["number"]).columns.tolist()
-
         feature_labels = [
             make_readable_label(col)
             for col in numeric_columns
         ]
-
         if non_numeric_columns:
             sample_labels = df[non_numeric_columns[0]].astype(str).tolist()
         else:
             sample_labels = [f"Sample {i + 1}" for i in range(len(df))]
-
         return feature_labels, sample_labels    
-
-
+    
     def make_readable_label(label):
         label = str(label)
-
         label = label.replace("_", " ")
         label = label.replace("-", " ")
         label = label.replace("/", " / ")
-
         label = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", label)
         label = re.sub(r"\s+", " ", label).strip()
-
         return label.title()
     
-
     def make_config_card(title, value):
         return dbc.Card(
         dbc.CardBody(
@@ -103,8 +91,7 @@ def register_callbacks(dash_app):
             "backgroundColor": "white"
         }
     )
-
-
+    
     def make_light_section_card(title, subtitle, children):
         return dbc.Card(
             dbc.CardBody(
@@ -133,7 +120,7 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
+    
     def make_interpretation_card(title, text):
         return dbc.Card(
             dbc.CardBody(
@@ -165,8 +152,7 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
-
+    
     def make_light_section_card(title, subtitle, children):
         return dbc.Card(
             dbc.CardBody(
@@ -195,8 +181,7 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
-
+    
     def make_interpretation_card(title, text):
         return dbc.Card(
             dbc.CardBody(
@@ -228,52 +213,37 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
-
+    
     def make_dataset_title(filename):
-
         name = os.path.splitext(filename)[0]
-
         name = name.replace("_", " ")
         name = name.replace("-", " ")
-
         name = re.sub(r"\bfor\b.*", "", name, flags=re.IGNORECASE)
-
         name = re.sub(r"\s+", " ", name).strip()
-
         return name.title()
-
-
+    
     def send_excel_file(df, filename, sheet_name="Sheet1", index=False):
         output = BytesIO()
-
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(
                 writer,
                 sheet_name=sheet_name,
                 index=index
             )
-
             worksheet = writer.sheets[sheet_name]
-
             for column_cells in worksheet.columns:
                 max_length = 0
                 column_letter = column_cells[0].column_letter
-
                 for cell in column_cells:
                     cell_value = str(cell.value) if cell.value is not None else ""
                     max_length = max(max_length, len(cell_value))
-
                 worksheet.column_dimensions[column_letter].width = max_length + 3
-
         output.seek(0)
-
         return dcc.send_bytes(
             output.getvalue(),
             filename
         )
-
-
+    
     @dash_app.callback(
         Output("upload-output", "children"),
         Output("dataset-store", "data"),
@@ -291,11 +261,9 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         try:
             content_type, content_string = contents.split(",")
             decoded = base64.b64decode(content_string)
-
             if not filename or not filename.lower().endswith(".csv"):
                 return (
                     dbc.Alert(
@@ -305,17 +273,13 @@ def register_callbacks(dash_app):
                     ),
                     dash.no_update
                 )
-
             df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
-
             numeric_columns = df.select_dtypes(include="number").columns.tolist()
             non_numeric_columns = df.select_dtypes(exclude="number").columns.tolist()
-
             if non_numeric_columns:
                 sample_names = df[non_numeric_columns[0]].astype(str).tolist()
             else:
                 sample_names = [f"Sample {i + 1}" for i in range(len(df))]
-
             dataset_data = {
                 "filename": filename,
                 "display_name": make_dataset_title(filename),
@@ -324,7 +288,6 @@ def register_callbacks(dash_app):
                 "sample_names": sample_names,
                 "data": df.to_dict("records")
             }
-
             dataset_loaded_info = dbc.Card(
                 dbc.CardBody([
                     html.Div([
@@ -343,7 +306,6 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
             dataset_cards = dbc.Row([
                 dbc.Col(
                     dbc.Card(
@@ -363,7 +325,6 @@ def register_callbacks(dash_app):
                     ),
                     md=4
                 ),
-
                 dbc.Col(
                     dbc.Card(
                         dbc.CardBody([
@@ -382,7 +343,6 @@ def register_callbacks(dash_app):
                     ),
                     md=4
                 ),
-
                 dbc.Col(
                     dbc.Card(
                         dbc.CardBody([
@@ -402,7 +362,6 @@ def register_callbacks(dash_app):
                     md=4
                 ),
             ], className="mb-3")
-
             preview_controls = dbc.Card(
                 dbc.CardBody([
                     dbc.Row([
@@ -429,7 +388,6 @@ def register_callbacks(dash_app):
                                 }
                             )
                         ], md=8),
-
                         dbc.Col(
                             html.Small(
                                 "Search across all columns.",
@@ -453,7 +411,6 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
             preview_table = dash_table.DataTable(
                 id="dataset-preview-table",
                 data=df.head(10).to_dict("records"),
@@ -468,7 +425,6 @@ def register_callbacks(dash_app):
                 page_action="native",
                 sort_action="native",
                 filter_action="none",
-
                 style_table={
                     "overflowX": "auto",
                     "overflowY": "hidden",
@@ -476,7 +432,6 @@ def register_callbacks(dash_app):
                     "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
                     "border": "1px solid #e9ecef"
                 },
-
                 style_header={
                     "backgroundColor": "#52b2cf",
                     "color": "white",
@@ -487,7 +442,6 @@ def register_callbacks(dash_app):
                     "border": "1px solid #52b2cf",
                     "height": "40px"
                 },
-
                 style_cell={
                     "textAlign": "center",
                     "padding": "5px",
@@ -498,13 +452,11 @@ def register_callbacks(dash_app):
                     "whiteSpace": "normal",
                     "height": "auto"
                 },
-
                 style_data={
                     "backgroundColor": "white",
                     "color": "#2c3e50",
                     "border": "1px solid #f1f1f1"
                 },
-
                 style_data_conditional=[
                     {
                         "if": {
@@ -528,12 +480,9 @@ def register_callbacks(dash_app):
                     }
                 ],
             )
-
             preview = html.Div([
                 dataset_loaded_info,
-
                 dataset_cards,
-
                 html.H5(
                     "Dataset Preview",
                     className="mb-3",
@@ -542,14 +491,10 @@ def register_callbacks(dash_app):
                         "color": "#2c3e50"
                     }
                 ),
-
                 preview_controls,
-
                 preview_table
             ])
-
             return preview, dataset_data
-
         except Exception as e:
             return (
                 dbc.Alert(
@@ -559,7 +504,7 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-        
+    
     @dash_app.callback(
         Output("dataset-preview-table", "data"),
         Input("dataset-preview-search", "value"),
@@ -569,25 +514,20 @@ def register_callbacks(dash_app):
     def filter_dataset_preview(search_value, dataset_data):
         if not dataset_data or "data" not in dataset_data:
             raise PreventUpdate
-
         df = pd.DataFrame(dataset_data["data"])
-
         if not search_value:
             return df.head(10).to_dict("records")
-
         search_value = str(search_value).lower().strip()
-
         filtered_df = df[
             df.astype(str)
             .apply(
-                lambda row: row.str.lower().str.contains(search_value, na=False).any(),
+                lambda row: row.str.lower().str.contains(search_value, na=False).any()
+,
                 axis=1
             )
         ]
-
         return filtered_df.head(50).to_dict("records")
-
-
+    
     @dash_app.callback(
         Output("url", "pathname", allow_duplicate=True),
         Output("upload-warning", "children"),
@@ -597,12 +537,10 @@ def register_callbacks(dash_app):
     )
     def handle_upload_next_click(n_clicks, dataset_data):
         triggered = ctx.triggered_id
-
         if triggered == "dataset-store":
             if dataset_data:
                 return dash.no_update, ""
             return dash.no_update, dash.no_update
-
         if triggered == "upload-next-btn":
             if not dataset_data:
                 return dash.no_update, dbc.Alert(
@@ -610,11 +548,9 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
             return "/choose-k", ""
-
         return dash.no_update, dash.no_update
-
+    
     @dash_app.callback(
         Output("url", "pathname", allow_duplicate=True),
         Output("choose-k-warning", "children"),
@@ -624,12 +560,10 @@ def register_callbacks(dash_app):
     )
     def handle_choose_k_next_click(n_clicks, selected_k_data):
         triggered = ctx.triggered_id
-
         if triggered == "selected-k-store":
             if selected_k_data and "selected_k" in selected_k_data:
                 return dash.no_update, ""
             return dash.no_update, dash.no_update
-
         if triggered == "choose-k-next-btn":
             if not selected_k_data or "selected_k" not in selected_k_data:
                 return dash.no_update, dbc.Alert(
@@ -637,12 +571,9 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
             return "/run", ""
-
         return dash.no_update, dash.no_update
-
-
+    
     @dash_app.callback(
         Output("dataset-info", "children"),
         Input("dataset-store", "data")
@@ -653,20 +584,16 @@ def register_callbacks(dash_app):
                 "No dataset loaded. Please go back and upload a dataset.",
                 color="danger"
             )
-
         rows, cols = data["shape"]
-
         dataset_name = (
             data.get("display_name")
             or data.get("filename")
             or "Uploaded Dataset"
         )
-
         numeric_features = len([
             col for col in data.get("columns", [])
             if str(col).lower() not in ["id", "label", "class"]
         ])
-
         return make_light_section_card(
             title="Dataset Overview",
             subtitle="Summary of the uploaded dataset used for k-selection analysis.",
@@ -694,8 +621,7 @@ def register_callbacks(dash_app):
                 className="g-3"
             )
         )
-
-
+    
     @dash_app.callback(
         Output("k-max", "max"),
         Input("dataset-store", "data")
@@ -703,72 +629,61 @@ def register_callbacks(dash_app):
     def set_k_max(data):
         if not data:
             return 10
-
         return data["shape"][1]
-
+    
     def filter_k_metrics_columns(results_df, methods, clustering):
         columns_to_show = ["init", "k"]
-
         if "elbow" in methods:
             columns_to_show.extend([
                 "reconstruction_error_mean",
                 "reconstruction_error_std"
             ])
-
         if "silhouette" in methods:
             if "argmax" in clustering:
                 columns_to_show.extend([
                     "silhouette_argmax_mean",
                     "silhouette_argmax_std"
                 ])
-
             if "kmeans" in clustering:
                 columns_to_show.extend([
                     "silhouette_kmeans_mean",
                     "silhouette_kmeans_std"
                 ])
-
             if "fcm" in clustering:
                 columns_to_show.extend([
                     "silhouette_fcm_mean",
                     "silhouette_fcm_std"
                 ])
-
         if "cophenetic" in methods:
             if "argmax" in clustering:
                 columns_to_show.append("coph_argmax")
-
             if "kmeans" in clustering:
                 columns_to_show.append("coph_kmeans")
-
             if "fcm" in clustering:
                 columns_to_show.extend([
                     "coph_fcm_hard",
                     "coph_fcm_soft_dot",
                     "coph_fcm_soft_cosine"
                 ])
-
         existing_columns = [
             col for col in columns_to_show
             if col in results_df.columns
         ]
-
         return results_df[existing_columns]
     
-
     @dash_app.callback(
-    Output("k-selection-summary", "children"),
-    Output("k-selection-metrics", "children"),
-    Output("k-experiment-status", "data"),
-    Input("run-k-selection", "n_clicks"),
-    State("method-selection", "value"),
-    State("clustering-selection", "value"),
-    State("init-selection", "value"),
-    State("nmf-selection", "value"),
-    State("k-min", "value"),
-    State("k-max", "value"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("k-selection-summary", "children"),
+        Output("k-selection-metrics", "children"),
+        Output("k-experiment-status", "data"),
+        Input("run-k-selection", "n_clicks"),
+        State("method-selection", "value"),
+        State("clustering-selection", "value"),
+        State("init-selection", "value"),
+        State("nmf-selection", "value"),
+        State("k-min", "value"),
+        State("k-max", "value"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def run_k_selection_summary(
         n_clicks,
@@ -782,7 +697,7 @@ def register_callbacks(dash_app):
     ):
         if not n_clicks:
             return dash.no_update, dash.no_update, dash.no_update
-
+        
         def warning_card(title, message):
             return dbc.Card(
                 dbc.CardBody(
@@ -809,7 +724,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def error_card(title, message):
             return dbc.Card(
                 dbc.CardBody(
@@ -836,7 +751,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def config_card(title, value):
             return dbc.Card(
                 dbc.CardBody(
@@ -864,93 +779,88 @@ def register_callbacks(dash_app):
                     "backgroundColor": "white"
                 }
             )
-
+        
         if not dataset_data:
             alert = error_card(
                 "Dataset not loaded",
                 "Please upload a dataset before running the k-selection experiment."
             )
             return alert, alert, dash.no_update
-
+        
         if not methods:
             alert = warning_card(
                 "Missing evaluation method",
                 "Please select at least one evaluation method."
             )
             return alert, alert, dash.no_update
-
+        
         if not clustering:
             alert = warning_card(
                 "Missing clustering algorithm",
                 "Please select at least one clustering algorithm."
             )
             return alert, alert, dash.no_update
-
+        
         if not init_methods:
             alert = warning_card(
                 "Missing initialization method",
                 "Please select at least one initialization method."
             )
             return alert, alert, dash.no_update
-
+        
         if k_min is None or k_max is None:
             alert = warning_card(
                 "Missing k range",
                 "Please define both minimum and maximum k."
             )
             return alert, alert, dash.no_update
-
+        
         if k_min < 2:
             alert = warning_card(
                 "Invalid k range",
                 "Minimum k must be at least 2."
             )
             return alert, alert, dash.no_update
-
+        
         max_features = dataset_data["shape"][1]
-
         if k_max > max_features:
             alert = warning_card(
                 "Invalid k range",
                 f"Maximum k cannot exceed the number of features ({max_features})."
             )
             return alert, alert, dash.no_update
-
+        
         if k_min > k_max:
             alert = warning_card(
                 "Invalid k range",
                 "Minimum k cannot be greater than maximum k."
             )
             return alert, alert, dash.no_update
-
+        
         method_labels = {
             "elbow": "Elbow Method",
             "silhouette": "Silhouette Score",
             "cophenetic": "Cophenetic Index"
         }
-
         clustering_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
             "fcm": "Fuzzy C-Means"
         }
-
         init_labels = {
             "random": "Random",
             "nndsvd": "NNDSVD",
             "custom1": "Custom 1",
             "custom2": "Custom 2"
         }
-
         nmf_labels = {
             "nmf_standard": "Standard NMF"
         }
-
         methods_readable = [method_labels.get(m, m) for m in methods]
         clustering_readable = [clustering_labels.get(c, c) for c in clustering]
         init_readable = [init_labels.get(i, i) for i in init_methods]
         nmf_readable = nmf_labels.get(nmf_alg, nmf_alg)
-
+        
         try:
             experiment_output = run_k_experiments(
                 dataset_data=dataset_data,
@@ -958,37 +868,32 @@ def register_callbacks(dash_app):
                 k_max=k_max,
                 init_methods=init_methods
             )
-
             results_df = pd.DataFrame(experiment_output["metrics"])
-
             display_results_df = filter_k_metrics_columns(
                 results_df=results_df,
                 methods=methods,
                 clustering=clustering
             )
-
         except Exception as e:
             alert = error_card(
                 "Experiment error",
                 f"Error during experiment: {str(e)}"
             )
             return alert, alert, dash.no_update
-
+        
         if results_df.empty:
             alert = warning_card(
                 "No results available",
                 "The experiment completed but returned no results."
             )
             return alert, alert, dash.no_update
-
+        
         k_col = "k" if "k" in results_df.columns else results_df.columns[0]
-
         reconstruction_col = (
             "reconstruction_error_mean"
             if "reconstruction_error_mean" in results_df.columns
             else None
         )
-
         silhouette_col = None
         if "silhouette_kmeans_mean" in results_df.columns:
             silhouette_col = "silhouette_kmeans_mean"
@@ -996,7 +901,6 @@ def register_callbacks(dash_app):
             silhouette_col = "silhouette_argmax_mean"
         elif "silhouette_fcm_mean" in results_df.columns:
             silhouette_col = "silhouette_fcm_mean"
-
         cophenetic_col = None
         if "coph_kmeans" in results_df.columns:
             cophenetic_col = "coph_kmeans"
@@ -1008,7 +912,7 @@ def register_callbacks(dash_app):
             cophenetic_col = "coph_fcm_soft_dot"
         elif "coph_fcm_soft_cosine" in results_df.columns:
             cophenetic_col = "coph_fcm_soft_cosine"
-
+        
         try:
             if "silhouette" in methods and silhouette_col:
                 best_k = results_df.loc[
@@ -1016,31 +920,26 @@ def register_callbacks(dash_app):
                     k_col
                 ]
                 best_metric_label = "Silhouette Score"
-
             elif "cophenetic" in methods and cophenetic_col:
                 best_k = results_df.loc[
                     results_df[cophenetic_col].idxmax(),
                     k_col
                 ]
                 best_metric_label = "Cophenetic Index"
-
             elif reconstruction_col:
                 best_k = results_df.loc[
                     results_df[reconstruction_col].idxmin(),
                     k_col
                 ]
                 best_metric_label = "Reconstruction Error"
-
             else:
                 best_k = results_df[k_col].iloc[0]
                 best_metric_label = "First available k"
-
         except Exception:
             best_k = results_df[k_col].iloc[0]
             best_metric_label = "First available k"
-
         best_k = int(best_k)
-
+        
         suggested_k_card = dbc.Card(
             dbc.CardBody(
                 [
@@ -1071,11 +970,9 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
         metrics_table = html.Div(
             [
                 suggested_k_card,
-
                 dash_table.DataTable(
                     data=display_results_df.to_dict("records"),
                     columns=[
@@ -1089,7 +986,6 @@ def register_callbacks(dash_app):
                     page_action="native",
                     sort_action="native",
                     filter_action="none",
-
                     style_table={
                         "overflowX": "auto",
                         "overflowY": "hidden",
@@ -1097,7 +993,6 @@ def register_callbacks(dash_app):
                         "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
                         "border": "1px solid #e9ecef"
                     },
-
                     style_cell={
                         "textAlign": "center",
                         "padding": "7px",
@@ -1108,7 +1003,6 @@ def register_callbacks(dash_app):
                         "whiteSpace": "normal",
                         "height": "auto"
                     },
-
                     style_header={
                         "backgroundColor": "#52b2cf",
                         "color": "white",
@@ -1118,13 +1012,11 @@ def register_callbacks(dash_app):
                         "padding": "8px",
                         "border": "1px solid #52b2cf"
                     },
-
                     style_data={
                         "backgroundColor": "white",
                         "color": "#2c3e50",
                         "border": "1px solid #f1f1f1"
                     },
-
                     style_data_conditional=[
                         {
                             "if": {
@@ -1158,13 +1050,12 @@ def register_callbacks(dash_app):
                 )
             ]
         )
-
+        
         dataset_name = (
             dataset_data.get("display_name")
             or dataset_data.get("filename")
             or "Uploaded Dataset"
         )
-
         summary_card = dbc.Card(
             dbc.CardBody(
                 [
@@ -1176,13 +1067,11 @@ def register_callbacks(dash_app):
                             "color": "#2c3e50"
                         }
                     ),
-
                     html.P(
                         "Summary of the settings used during the k-selection experiment.",
                         className="text-muted mb-4",
                         style={"fontSize": "14px"}
                     ),
-
                     dbc.Row(
                         [
                             dbc.Col(
@@ -1190,13 +1079,11 @@ def register_callbacks(dash_app):
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card("Calculated k", best_k),
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "Evaluation Methods",
@@ -1205,7 +1092,6 @@ def register_callbacks(dash_app):
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "Clustering Algorithms",
@@ -1214,7 +1100,6 @@ def register_callbacks(dash_app):
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "Initialization Methods",
@@ -1222,7 +1107,6 @@ def register_callbacks(dash_app):
                                 ),
                                 md=6
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "NMF Algorithm",
@@ -1243,7 +1127,6 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
         return summary_card, metrics_table, {
             "completed": True,
             "k_min": k_min,
@@ -1281,57 +1164,50 @@ def register_callbacks(dash_app):
                     color="danger",
                     className="mt-2 p-2 mb-0"
                 )
-
         if not methods:
             return dbc.Alert(
             "Please select at least one evaluation method.",
             color="warning",
             className="mt-2 p-2 mb-0"
             )
-
         if not clustering:
             return dbc.Alert(
                 "Please select at least one clustering algorithm.",
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
         if not init_methods:
             return dbc.Alert(
                 "Please select at least one initialization method.",
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
         if not nmf_alg:
                 return dbc.Alert(
                 "Please select an NMF algorithm.",
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
         if k_min is None or k_max is None:
             return dbc.Alert(
             "Please define both minimum and maximum k.",
             color="warning",
             className="mt-2 p-2 mb-0"
             )
-
         if k_min < 2:
             return dbc.Alert(
             "Minimum k must be at least 2.",
             color="warning",
             className="mt-2 p-2 mb-0"
             )
-
         max_features = dataset_data["shape"][1]
         if k_max > max_features:
             return dbc.Alert(
-                f"Maximum k cannot exceed the number of features ({max_features}).",
+                f"Maximum k cannot exceed the number of features ({max_features})."
+,
                 color="warning",
                 className="mt-2 p-2 mb-0"
             )
-
         if k_min > k_max:
             return dbc.Alert(
                 "Minimum k cannot be greater than maximum k.",
@@ -1339,7 +1215,7 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
                 )
         return ""
-
+    
     @dash_app.callback(
         Output("k-selection-graph", "figure"),
         Input("result-method-selector", "value"),
@@ -1348,15 +1224,12 @@ def register_callbacks(dash_app):
         prevent_initial_call=False
     )
     def update_k_selection_graph(selected_method, clustering_selection, k_status):
-
         fig = go.Figure()
-
         if not k_status or not k_status.get("metrics"):
             fig.update_layout(
                 title="k-selection graph",
                 template="plotly_white"
             )
-
             fig.add_annotation(
                 text="Run the k-selection experiment to visualize the results.",
                 xref="paper",
@@ -1366,70 +1239,53 @@ def register_callbacks(dash_app):
                 showarrow=False,
                 font=dict(size=16)
             )
-
             return fig
-
         df = pd.DataFrame(k_status.get("metrics", []))
-
         if df.empty or "k" not in df.columns:
             fig.update_layout(
                 title="k-selection graph",
                 template="plotly_white"
             )
             return fig
-
         if not clustering_selection:
             clustering_selection = []
-
         suggested_k = k_status.get("suggested_k")
-
         method_labels = {
             "elbow": "Elbow Method - Reconstruction Error by k",
             "silhouette": "Silhouette Score by k",
             "cophenetic": "Cophenetic Index by k"
         }
-
         yaxis_labels = {
             "elbow": "Reconstruction Error",
             "silhouette": "Silhouette Score",
             "cophenetic": "Cophenetic Index"
         }
-
         metric_columns = {}
-
         if selected_method == "elbow":
             metric_columns = {
                 "Reconstruction Error": "reconstruction_error_mean"
             }
-
         elif selected_method == "silhouette":
             if "argmax" in clustering_selection:
                 metric_columns["Argmax"] = "silhouette_argmax_mean"
-
             if "kmeans" in clustering_selection:
                 metric_columns["K-Means"] = "silhouette_kmeans_mean"
-
             if "fcm" in clustering_selection:
                 metric_columns["Fuzzy C-Means"] = "silhouette_fcm_mean"
-
         elif selected_method == "cophenetic":
             if "argmax" in clustering_selection:
                 metric_columns["Argmax"] = "coph_argmax"
-
             if "kmeans" in clustering_selection:
                 metric_columns["K-Means"] = "coph_kmeans"
-
             if "fcm" in clustering_selection:
                 metric_columns["FCM Hard"] = "coph_fcm_hard"
                 metric_columns["FCM Soft Dot"] = "coph_fcm_soft_dot"
                 metric_columns["FCM Soft Cosine"] = "coph_fcm_soft_cosine"
-
         if not metric_columns:
             fig.update_layout(
                 title=method_labels.get(selected_method, "k-selection graph"),
                 template="plotly_white"
             )
-
             fig.add_annotation(
                 text="No compatible metric selected for the current clustering configuration.",
                 xref="paper",
@@ -1439,22 +1295,15 @@ def register_callbacks(dash_app):
                 showarrow=False,
                 font=dict(size=15)
             )
-
             return fig
-
         if "init" not in df.columns:
             df["init"] = "default"
-
         init_values = sorted(df["init"].dropna().unique())
-
         for init_value in init_values:
             init_df = df[df["init"] == init_value].sort_values("k")
-
             for metric_label, column_name in metric_columns.items():
-
                 if column_name not in init_df.columns:
                     continue
-
                 fig.add_trace(
                     go.Scatter(
                         x=init_df["k"],
@@ -1472,7 +1321,6 @@ def register_callbacks(dash_app):
                         )
                     )
                 )
-
         if suggested_k is not None:
             fig.add_vline(
                 x=suggested_k,
@@ -1482,7 +1330,6 @@ def register_callbacks(dash_app):
                 annotation_text=f"Suggested k = {suggested_k}",
                 annotation_position="top right"
             )
-
         fig.update_layout(
             title=method_labels.get(selected_method, "k-selection graph"),
             xaxis_title="k",
@@ -1500,14 +1347,12 @@ def register_callbacks(dash_app):
             margin=dict(l=40, r=40, t=70, b=120),
             height=600
         )
-
         fig.update_xaxes(
             dtick=1,
             tickmode="linear"
         )
-
         return fig
-
+    
     @dash_app.callback(
         Output("confirm-k-message", "children"),
         Output("selected-k-store", "data"),
@@ -1520,7 +1365,7 @@ def register_callbacks(dash_app):
     def confirm_selected_k(n_clicks, selected_k, dataset_data, experiment_status):
         if not n_clicks:
             return dash.no_update, dash.no_update
-
+        
         def warning_card(title, message):
             return dbc.Card(
                 dbc.CardBody([
@@ -1544,7 +1389,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def error_card(title, message):
             return dbc.Card(
                 dbc.CardBody([
@@ -1568,7 +1413,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         if not dataset_data:
             return (
                 error_card(
@@ -1577,7 +1422,6 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         if not experiment_status or not experiment_status.get("completed"):
             return (
                 warning_card(
@@ -1586,7 +1430,6 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         if selected_k is None:
             return (
                 warning_card(
@@ -1595,10 +1438,8 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         selected_k = int(selected_k)
         max_features = dataset_data["shape"][1]
-
         if selected_k < 2:
             return (
                 warning_card(
@@ -1607,7 +1448,6 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         if selected_k > max_features:
             return (
                 warning_card(
@@ -1616,7 +1456,6 @@ def register_callbacks(dash_app):
                 ),
                 dash.no_update
             )
-
         confirmation_card = dbc.Card(
             dbc.CardBody([
                 html.Div([
@@ -1635,12 +1474,11 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
         return (
             confirmation_card,
             {"selected_k": selected_k}
         )
-
+    
     @dash_app.callback(
         Output("selected-k-display", "children"),
         Input("selected-k-store", "data")
@@ -1648,9 +1486,8 @@ def register_callbacks(dash_app):
     def show_selected_k(data):
         if not data or "selected_k" not in data:
             return "No k has been selected yet. Please go back to Step 2."
-
         return f"Selected k: {data['selected_k']}"
-
+    
     @dash_app.callback(
         Output("consensus-fcm-mode-container", "style"),
         Input("consensus-method-selector", "value")
@@ -1658,22 +1495,20 @@ def register_callbacks(dash_app):
     def toggle_fcm_consensus_mode(method):
         if method == "fcm":
             return {"display": "block"}
-
         return {"display": "none"}
-
-
+    
     @dash_app.callback(
-    Output("final-nmf-summary", "children"),
-    Output("cluster-output", "children"),
-    Output("nmf-results-store", "data"),
-    Output("run-nmf-warning", "children"),
-    Input("run-final-nmf", "n_clicks"),
-    State("selected-k-store", "data"),
-    State("final-clustering", "value"),
-    State("final-init", "value"),
-    State("final-nmf", "value"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("final-nmf-summary", "children"),
+        Output("cluster-output", "children"),
+        Output("nmf-results-store", "data"),
+        Output("run-nmf-warning", "children"),
+        Input("run-final-nmf", "n_clicks"),
+        State("selected-k-store", "data"),
+        State("final-clustering", "value"),
+        State("final-init", "value"),
+        State("final-nmf", "value"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def run_final_nmf_summary(
         n_clicks,
@@ -1685,7 +1520,7 @@ def register_callbacks(dash_app):
     ):
         if not n_clicks:
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update
-
+        
         if not selected_k_data or "selected_k" not in selected_k_data:
             alert = dbc.Alert(
                 "No k has been selected yet. Please go back to Step 2.",
@@ -1693,7 +1528,7 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if not dataset_data:
             alert = dbc.Alert(
                 "No dataset loaded. Please upload a dataset first.",
@@ -1701,7 +1536,7 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if not final_clustering:
             alert = dbc.Alert(
                 "Please select a clustering algorithm before running NMF.",
@@ -1709,7 +1544,7 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if not final_init:
             alert = dbc.Alert(
                 "Please select an initialization method before running NMF.",
@@ -1717,7 +1552,7 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if not final_nmf:
             alert = dbc.Alert(
                 "Please select an NMF algorithm before running NMF.",
@@ -1725,20 +1560,18 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         k_value = selected_k_data["selected_k"]
-
+        
         try:
             nmf_results_data = run_final_nmf(
                 dataset_data=dataset_data,
                 selected_k=k_value,
                 final_init=final_init
             )
-
             nmf_results_data["final_clustering"] = final_clustering
             nmf_results_data["final_init"] = final_init
             nmf_results_data["final_nmf"] = final_nmf
-
         except Exception as e:
             alert = dbc.Alert(
                 f"Error while running final NMF: {str(e)}",
@@ -1746,28 +1579,25 @@ def register_callbacks(dash_app):
                 className="mt-2 p-2 mb-0"
             )
             return dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         clustering_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
             "fcm": "Fuzzy C-Means"
         }
-
         init_labels = {
             "random": "Random",
             "nndsvd": "NNDSVD"
         }
-
         nmf_labels = {
             "nmf_standard": "Standard NMF"
         }
-
         dataset_name = (
             dataset_data.get("display_name")
             or dataset_data.get("filename")
             or "Uploaded Dataset"
         )
-
+        
         def config_card(title, value):
             return dbc.Card(
                 dbc.CardBody(
@@ -1799,11 +1629,10 @@ def register_callbacks(dash_app):
                     "backgroundColor": "white"
                 }
             )
-
+        
         summary = dbc.Card(
             dbc.CardBody(
                 [
-
                     html.H5(
                         "Final NMF Configuration",
                         className="mb-2",
@@ -1812,7 +1641,6 @@ def register_callbacks(dash_app):
                             "color": "#2c3e50"
                         }
                     ),
-
                     html.P(
                         "Summary of the selected configuration used for the final NMF computation.",
                         className="text-muted mb-4",
@@ -1820,22 +1648,18 @@ def register_callbacks(dash_app):
                             "fontSize": "14px"
                         }
                     ),
-
                     dbc.Row(
                         [
-
                             dbc.Col(
                                 config_card("Dataset", dataset_name),
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card("Selected k", k_value),
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "Clustering Algorithm",
@@ -1843,7 +1667,6 @@ def register_callbacks(dash_app):
                                 ),
                                 md=4
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "Initialization",
@@ -1851,7 +1674,6 @@ def register_callbacks(dash_app):
                                 ),
                                 md=4
                             ),
-
                             dbc.Col(
                                 config_card(
                                     "NMF Algorithm",
@@ -1859,11 +1681,9 @@ def register_callbacks(dash_app):
                                 ),
                                 md=4
                             ),
-
                         ],
                         className="g-3"
                     )
-
                 ],
                 style={
                     "padding": "22px"
@@ -1876,10 +1696,9 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
+        
         clusters = nmf_results_data.get("clusters", {})
         selected_clusters = clusters.get(final_clustering)
-
         if selected_clusters is None or len(selected_clusters) == 0:
             cluster_output = dbc.Card(
                 dbc.CardBody(
@@ -1908,18 +1727,15 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
         else:
             _, sample_labels = get_dataset_labels(dataset_data)
-
             cluster_rows = [
                 {
-                    "Sample": sample_labels[i] if i < len(sample_labels) else f"Sample {i + 1}",
+                    "Sample": sample_labels[i] if i < len(sample_labels) else f"Sample {i+1}",
                     "Cluster": int(c) + 1
                 }
                 for i, c in enumerate(selected_clusters)
             ]
-
             cluster_interpretation = dbc.Card(
                 dbc.CardBody(
                     [
@@ -1956,10 +1772,8 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
             cluster_output = html.Div(
                 [
-
                     html.H5(
                         "Cluster Assignments",
                         className="mb-2",
@@ -1968,7 +1782,6 @@ def register_callbacks(dash_app):
                             "color": "#2c3e50"
                         }
                     ),
-
                     html.P(
                         "Final sample-to-cluster assignments produced by the selected clustering algorithm.",
                         className="text-muted mb-3",
@@ -1976,7 +1789,6 @@ def register_callbacks(dash_app):
                             "fontSize": "14px"
                         }
                     ),
-
                     dash_table.DataTable(
                         data=cluster_rows,
                         columns=[
@@ -1993,7 +1805,6 @@ def register_callbacks(dash_app):
                         page_action="native",
                         sort_action="native",
                         filter_action="none",
-
                         style_table={
                             "overflowX": "auto",
                             "overflowY": "hidden",
@@ -2001,7 +1812,6 @@ def register_callbacks(dash_app):
                             "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
                             "border": "1px solid #e9ecef"
                         },
-
                         style_header={
                             "backgroundColor": "#52b2cf",
                             "color": "white",
@@ -2011,7 +1821,6 @@ def register_callbacks(dash_app):
                             "padding": "8px",
                             "border": "1px solid #52b2cf"
                         },
-
                         style_cell={
                             "textAlign": "center",
                             "padding": "7px",
@@ -2022,13 +1831,11 @@ def register_callbacks(dash_app):
                             "whiteSpace": "normal",
                             "height": "auto"
                         },
-
                         style_data={
                             "backgroundColor": "white",
                             "color": "#2c3e50",
                             "border": "1px solid #f1f1f1"
                         },
-
                         style_data_conditional=[
                             {
                                 "if": {
@@ -2052,15 +1859,11 @@ def register_callbacks(dash_app):
                             }
                         ],
                     ),
-
                     cluster_interpretation
-
                 ]
             )
-
         return summary, cluster_output, nmf_results_data, ""
-
-        
+    
     @dash_app.callback(
         Output("url", "pathname", allow_duplicate=True),
         Output("run-warning", "children"),
@@ -2070,12 +1873,10 @@ def register_callbacks(dash_app):
     )
     def handle_run_next_click(n_clicks, nmf_results):
             triggered = ctx.triggered_id
-
             if triggered == "nmf-results-store":
                 if nmf_results and nmf_results.get("nmf_completed"):
                     return dash.no_update, ""
                 return dash.no_update, dash.no_update
-
             if triggered == "run-next-btn":
                 if not nmf_results or not nmf_results.get("nmf_completed"):
                     return dash.no_update, dbc.Alert(
@@ -2083,22 +1884,19 @@ def register_callbacks(dash_app):
                     color="warning",
                     className="mt-2 p-2 mb-0"
                 )
-
                 return "/fuzzy", ""
-
             return dash.no_update, dash.no_update
-
+    
     @dash_app.callback(
-    Output("matrix-w-plot", "figure"),
-    Output("matrix-h-plot", "figure"),
-    Input("nmf-results-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=False
+        Output("matrix-w-plot", "figure"),
+        Output("matrix-h-plot", "figure"),
+        Input("nmf-results-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=False
     )
     def update_final_nmf_plots(nmf_results, dataset_data):
         fig_w = go.Figure()
         fig_h = go.Figure()
-
         if not nmf_results or not nmf_results.get("nmf_completed"):
             for fig, title, text in [
                 (fig_w, "Matrix W Heatmap", "Run the final NMF to visualize Matrix W."),
@@ -2114,34 +1912,27 @@ def register_callbacks(dash_app):
                     showarrow=False,
                     font=dict(size=16)
                 )
-
             return fig_w, fig_h
-
+        
         try:
             W = nmf_results.get("W_norm") or nmf_results.get("W")
             H = nmf_results.get("H_norm") or nmf_results.get("H")
-
             if W is None or H is None:
                 artifacts = nmf_results.get("artifacts", {})
                 W = artifacts.get("W_norm") or artifacts.get("W")
                 H = artifacts.get("H_norm") or artifacts.get("H")
-
             if W is None or H is None:
                 raise ValueError("W or H matrix not found in NMF results.")
-
             W = np.asarray(W, dtype=float)
             H = np.asarray(H, dtype=float)
-
+            
             feature_labels, sample_labels = get_dataset_labels(dataset_data)
-
             if not feature_labels or len(feature_labels) != W.shape[0]:
                 feature_labels = [f"Feature {i + 1}" for i in range(W.shape[0])]
-
             if not sample_labels or len(sample_labels) != H.shape[1]:
                 sample_labels = [f"Sample {i + 1}" for i in range(H.shape[1])]
-
             latent_factor_labels = [f"LF{i + 1}" for i in range(W.shape[1])]
-
+            
             fig_w = go.Figure(
                 data=go.Heatmap(
                     z=W,
@@ -2150,7 +1941,6 @@ def register_callbacks(dash_app):
                     colorbar=dict(title="Value")
                 )
             )
-
             fig_w.update_layout(
                 title="Matrix W Heatmap",
                 xaxis_title="Latent Factors",
@@ -2158,7 +1948,7 @@ def register_callbacks(dash_app):
                 template="plotly_white",
                 height=600
             )
-
+            
             fig_h = go.Figure(
                 data=go.Heatmap(
                     z=H,
@@ -2167,7 +1957,6 @@ def register_callbacks(dash_app):
                     colorbar=dict(title="Value")
                 )
             )
-
             fig_h.update_layout(
                 title="Matrix H Heatmap",
                 xaxis_title="Samples",
@@ -2175,9 +1964,7 @@ def register_callbacks(dash_app):
                 template="plotly_white",
                 height=600
             )
-
             return fig_w, fig_h
-
         except Exception as e:
             fig_error = go.Figure()
             fig_error.update_layout(template="plotly_white")
@@ -2190,31 +1977,21 @@ def register_callbacks(dash_app):
                 showarrow=False,
                 font=dict(size=15, color="red")
             )
-
             return fig_error, fig_error
     
-        
     def build_fuzzy_card(title, rows, first_col_name):
-
         if not rows:
             return dbc.Alert(
                 f"No data available for {title}.",
                 color="light"
             )
-
         cards = []
-
         for row in rows:
-
             row_title = row.get(first_col_name, "Item")
-
             table_rows = []
-
             for key, value in row.items():
-
                 if key == first_col_name:
                     continue
-
                 table_rows.append(
                     html.Tr([
                         html.Td(
@@ -2224,7 +2001,6 @@ def register_callbacks(dash_app):
                                 "verticalAlign": "middle"
                             }
                         ),
-
                         html.Td(
                             str(value),
                             style={
@@ -2233,38 +2009,25 @@ def register_callbacks(dash_app):
                         )
                     ])
                 )
-
             cards.append(
-
                 dbc.Card(
-
                     [
-
                         dbc.CardHeader(
-
                             html.H5(
                                 str(row_title),
                                 className="mb-0 text-white"
                             ),
-
                             style={
                                 "background": "linear-gradient(90deg, #52b2cf, #3b9dbb)",
                                 "padding": "12px 18px",
                                 "borderBottom": "none"
                             }
-
                         ),
-
                         dbc.CardBody(
-
                             dbc.Table(
-
                                 [
-
                                     html.Thead(
-
                                         html.Tr([
-
                                             html.Th(
                                                 "Element",
                                                 style={
@@ -2272,7 +2035,6 @@ def register_callbacks(dash_app):
                                                     "fontWeight": "600"
                                                 }
                                             ),
-
                                             html.Th(
                                                 "Fuzzy Label",
                                                 style={
@@ -2280,210 +2042,153 @@ def register_callbacks(dash_app):
                                                     "fontWeight": "600"
                                                 }
                                             )
-
                                         ])
-
                                     ),
-
                                     html.Tbody(table_rows)
-
                                 ],
-
                                 bordered=True,
                                 hover=True,
                                 responsive=True,
                                 striped=True,
                                 size="sm",
                                 className="mb-0"
-
                             ),
-
                             style={
                                 "padding": "18px"
                             }
-
                         )
-
                     ],
-
                     className="mb-4 shadow-sm border-0",
-
                     style={
                         "borderRadius": "12px",
                         "overflow": "hidden"
                     }
-
                 )
-
             )
-
         return html.Div(cards)
-
-
+    
     def build_h_fuzzy_cards(h_fuzzy_tables):
-
         if not h_fuzzy_tables:
             return dbc.Alert(
                     "No H fuzzy explanations available.",
                     color="light"
             )
-
         sections = []
-
         method_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
-
             "fcm_hard": (
                 "Fuzzy C-Means "
                 "(Hard assignment)"
             ),
-
             "fcm_soft_dot": (
                 "Fuzzy C-Means "
                 "(Soft membership - Dot product)"
             ),
-
             "fcm_soft_cosine": (
                 "Fuzzy C-Means "
                 "(Soft membership - Cosine similarity)"
             )
         }
-
         for method_name, rows in h_fuzzy_tables.items():
-
             method_title = method_labels.get(
                 method_name,
                 method_name
             )
-
             sections.append(
-
                 html.Div([
-
                     html.H5(
                         method_title,
                         className="mt-4 mb-3"
                     ),
-
                     build_fuzzy_card(
                         title=method_title,
                         rows=rows,
                         first_col_name="Cluster"
                     )
-
                 ])
-
             )
-
         return html.Div(sections)
-
+    
     def generate_w_summary(rows):
-
         if not rows:
             return ""
-
         first_row = rows[0]
-
         important_features = []
-
         for key, value in first_row.items():
-
             if key == "Latent Factor":
                 continue
-
             if value in ["Medium", "High", "Very High"]:
                 important_features.append(key)
-
         if not important_features:
             return (
                 "The latent factors show generally low activation across the dataset features."
             )
-
         feature_text = ", ".join(important_features[:4])
-
         return (
             f"The latent factors are mainly associated with: {feature_text}."
         )
-
-
+    
     def generate_h_summary(h_tables):
-
         if not h_tables:
             return ""
-
         methods = list(h_tables.keys())
-
         method_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
-
             "fcm_hard": (
                 "Fuzzy C-Means "
                 "(Hard assignment)"
             ),
-
             "fcm_soft_dot": (
                 "Fuzzy C-Means "
                 "(Soft membership - Dot product)"
             ),
-
             "fcm_soft_cosine": (
                 "Fuzzy C-Means "
                 "(Soft membership - Cosine similarity)"
             )
         }
-
         readable_methods = [
                 method_labels.get(method, method)
                 for method in methods
         ]
-
         return (
                 "The selected clustering algorithms provide fuzzy descriptions "
                 "of the cluster structure. Results are shown separately for: "
                 + ", ".join(readable_methods)
                 + "."
         )
-
-
+    
     def generate_examples_summary(sample_rows):
-
         if not sample_rows:
             return ""
-
         sample_names = []
-
         for row in sample_rows[:3]:
-
             if "Sample" in row:
                 sample_names.append(row["Sample"])
-
         if not sample_names:
             return ""
-
         names_text = ", ".join(sample_names)
-
         return (
-            f"The following samples show different latent factor activation patterns: {names_text}."
+            f"The following samples show different latent factor activation patterns:{names_text}."
         )
     
-    
     @dash_app.callback(
-    Output("fuzzy-summary", "children"),
-    Output("fuzzy-w-output", "children"),
-    Output("fuzzy-h-output", "children"),
-    Output("fuzzy-examples", "children"),
-    Output("fuzzy-settings", "data"),
-    Output("fuzzy-run-warning", "children"),
-    Input("run-fuzzy", "n_clicks"),
-    State("num-fuzzy-sets", "value"),
-    State("fuzzy-method", "value"),
-    State("fuzzy-shape", "value"),
-    State("fuzzy-target", "value"),
-    State("nmf-results-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("fuzzy-summary", "children"),
+        Output("fuzzy-w-output", "children"),
+        Output("fuzzy-h-output", "children"),
+        Output("fuzzy-examples", "children"),
+        Output("fuzzy-settings", "data"),
+        Output("fuzzy-run-warning", "children"),
+        Input("run-fuzzy", "n_clicks"),
+        State("num-fuzzy-sets", "value"),
+        State("fuzzy-method", "value"),
+        State("fuzzy-shape", "value"),
+        State("fuzzy-target", "value"),
+        State("nmf-results-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def generate_fuzzy_outputs(
         n_clicks,
@@ -2496,7 +2201,7 @@ def register_callbacks(dash_app):
     ):
         if not n_clicks:
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-
+        
         def warning_card(title, message):
             return dbc.Card(
                 dbc.CardBody([
@@ -2520,7 +2225,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def error_card(title, message):
             return dbc.Card(
                 dbc.CardBody([
@@ -2544,7 +2249,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def info_card(title, value):
             return dbc.Card(
                 dbc.CardBody(
@@ -2572,7 +2277,7 @@ def register_callbacks(dash_app):
                     "backgroundColor": "white"
                 }
             )
-
+        
         def interpretation_card(title, text):
             return dbc.Card(
                 dbc.CardBody(
@@ -2604,7 +2309,7 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def empty_section_card(title, message):
             return dbc.Card(
                 dbc.CardBody(
@@ -2632,16 +2337,14 @@ def register_callbacks(dash_app):
                     "borderRadius": "10px"
                 }
             )
-
+        
         def build_table_from_rows(rows, first_col_name="Element"):
             if not rows:
                 return empty_section_card(
                     "No data available",
                     "No fuzzy table was generated for this section."
                 )
-
             normalized_rows = []
-
             for row in rows:
                 clean_row = {}
                 for key, value in row.items():
@@ -2649,7 +2352,6 @@ def register_callbacks(dash_app):
                     clean_value = make_readable_label(value) if isinstance(value, str) else value
                     clean_row[clean_key] = clean_value
                 normalized_rows.append(clean_row)
-
             columns = [
                 {
                     "name": col,
@@ -2657,7 +2359,6 @@ def register_callbacks(dash_app):
                 }
                 for col in normalized_rows[0].keys()
             ]
-
             return dash_table.DataTable(
                 data=normalized_rows,
                 columns=columns,
@@ -2713,23 +2414,19 @@ def register_callbacks(dash_app):
                     }
                 ]
             )
-
+        
         def build_w_cards(w_rows):
             if not w_rows:
                 return empty_section_card(
                     "No W explanations available",
                     "Select Matrix W and generate fuzzy explanations to display this section."
                 )
-
             factors = {}
-
             for row in w_rows:
                 factor = row.get("Latent Factor") or row.get("latent_factor") or row.get("LF") or row.get("Factor")
                 if not factor:
                     factor = "Latent Factor"
-
                 factors.setdefault(factor, []).append(row)
-
             children = [
                 html.H5(
                     "Latent Factor Explanations",
@@ -2752,10 +2449,8 @@ def register_callbacks(dash_app):
                     )
                 )
             ]
-
             for factor_name, factor_rows in factors.items():
                 clean_rows = []
-
                 for row in factor_rows:
                     clean_row = {
                         key: value
@@ -2763,7 +2458,6 @@ def register_callbacks(dash_app):
                         if key not in ["Latent Factor", "latent_factor", "LF", "Factor"]
                     }
                     clean_rows.append(clean_row)
-
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2787,23 +2481,20 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
-
             return html.Div(children)
-
+        
         def build_h_cards(h_tables):
             if not h_tables:
                 return empty_section_card(
                     "No H explanations available",
                     "Select Matrix H and generate fuzzy explanations to display this section."
                 )
-
             method_labels = {
                 "argmax": "Argmax",
                 "kmeans": "K-Means",
                 "fcm_hard": "Fuzzy C-Means",
                 "fcm": "Fuzzy C-Means"
             }
-
             children = [
                 html.H5(
                     "Cluster Explanations",
@@ -2826,10 +2517,8 @@ def register_callbacks(dash_app):
                     )
                 )
             ]
-
             for method_name, rows in h_tables.items():
                 method_title = method_labels.get(method_name, make_readable_label(method_name))
-
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2853,18 +2542,15 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
-
             return html.Div(children)
-
+        
         def build_sample_cards(sample_rows):
             if not sample_rows:
                 return empty_section_card(
                     "No example interpretations available",
                     "Generate fuzzy explanations to display sample-level interpretations."
                 )
-
             samples = {}
-
             for row in sample_rows:
                 sample = (
                     row.get("Sample")
@@ -2872,12 +2558,9 @@ def register_callbacks(dash_app):
                     or row.get("Example")
                     or row.get("example")
                 )
-
                 if not sample:
                     sample = "Sample"
-
                 samples.setdefault(sample, []).append(row)
-
             children = [
                 html.H5(
                     "Example Interpretations",
@@ -2900,10 +2583,8 @@ def register_callbacks(dash_app):
                     )
                 )
             ]
-
             for sample_name, rows in samples.items():
                 clean_rows = []
-
                 for row in rows:
                     clean_row = {
                         key: value
@@ -2911,7 +2592,6 @@ def register_callbacks(dash_app):
                         if key not in ["Sample", "sample", "Example", "example"]
                     }
                     clean_rows.append(clean_row)
-
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2935,44 +2615,43 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
-
             return html.Div(children)
-
+        
         if not nmf_results or not nmf_results.get("nmf_completed"):
             alert = warning_card(
                 "Final NMF required",
                 "Please run the final NMF before generating fuzzy explanations."
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if num_sets is None or num_sets < 2:
             alert = warning_card(
                 "Invalid number of fuzzy sets",
                 "Please select at least 2 fuzzy sets."
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if fuzzy_method != "equidistant":
             alert = warning_card(
                 "Method not available",
                 "Only the Equidistant fuzzy creation method is currently connected to the backend."
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if fuzzy_shape != "gaussian":
             alert = warning_card(
                 "Shape not available",
                 "Only Gaussian membership functions are currently implemented in the backend."
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         if not fuzzy_target:
             alert = warning_card(
                 "Missing target matrix",
                 "Please select at least one target matrix."
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         try:
             fuzzy_results = run_fuzzy_from_nmf_results(
                 nmf_results=nmf_results,
@@ -2980,36 +2659,32 @@ def register_callbacks(dash_app):
                 n_fuzzy_sets=num_sets,
                 targets=fuzzy_target,
             )
-
         except Exception as e:
             alert = error_card(
                 "Fuzzy generation error",
                 f"Error while generating fuzzy explanations: {str(e)}"
             )
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-
+        
         method_labels = {
             "equidistant": "Equidistant",
             "quartile": "Quartile-Based",
             "manual": "Manual"
         }
-
         shape_labels = {
             "gaussian": "Gaussian",
             "triangular": "Triangular",
             "trapezoidal": "Trapezoidal"
         }
-
         target_labels = {
             "W": "Matrix W",
             "H": "Matrix H"
         }
-
         applied_to = ", ".join(
             target_labels.get(target, target)
             for target in fuzzy_target
         )
-
+        
         summary = dbc.Card(
             dbc.CardBody(
                 [
@@ -3021,13 +2696,11 @@ def register_callbacks(dash_app):
                             "color": "#2c3e50"
                         }
                     ),
-
                     html.P(
                         "Summary of the fuzzy explanation settings applied to the final NMF results.",
                         className="text-muted mb-4",
                         style={"fontSize": "14px"}
                     ),
-
                     dbc.Row(
                         [
                             dbc.Col(
@@ -3035,7 +2708,6 @@ def register_callbacks(dash_app):
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 info_card(
                                     "Creation Method",
@@ -3044,7 +2716,6 @@ def register_callbacks(dash_app):
                                 md=6,
                                 className="mb-3"
                             ),
-
                             dbc.Col(
                                 info_card(
                                     "Membership Shape",
@@ -3052,7 +2723,6 @@ def register_callbacks(dash_app):
                                 ),
                                 md=6
                             ),
-
                             dbc.Col(
                                 info_card("Applied To", applied_to),
                                 md=6
@@ -3070,11 +2740,11 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
+        
         w_rows = fuzzy_results.get("w_fuzzy_table", [])
         h_tables = fuzzy_results.get("h_fuzzy_tables", {})
         sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
-
+        
         if "W" in fuzzy_target:
             w_output = build_w_cards(w_rows)
         else:
@@ -3082,7 +2752,7 @@ def register_callbacks(dash_app):
                 "No W explanations available",
                 "Matrix W was not selected as a fuzzy explanation target."
             )
-
+        
         if "H" in fuzzy_target:
             h_output = build_h_cards(h_tables)
         else:
@@ -3090,9 +2760,8 @@ def register_callbacks(dash_app):
                 "No H explanations available",
                 "Matrix H was not selected as a fuzzy explanation target."
             )
-
+        
         examples_output = build_sample_cards(sample_rows)
-
         settings_data = {
             "fuzzy_completed": True,
             "num_fuzzy_sets": num_sets,
@@ -3101,19 +2770,21 @@ def register_callbacks(dash_app):
             "fuzzy_target": fuzzy_target,
             "results": fuzzy_results
         }
-
+        # ──Salva le explanations nel _STORE server-side ──────────────────
+        # In questo modo l'endpoint GET /api/explanations può esporle a Fuxplainer
+        # anche senza accesso allo dcc.Store client-side di Dash.
+        save_explanations(fuzzy_results)
+        # ─────────────────────────────────────────────────────────────────
         return summary, w_output, h_output, examples_output, settings_data, ""
-
+    
     @dash_app.callback(
-    Output("dataset-summary", "children"),
-    Input("dataset-store", "data")
+        Output("dataset-summary", "children"),
+        Input("dataset-store", "data")
     )
     def update_dataset_summary(dataset_data):
         if not dataset_data:
             return dbc.Alert("Dataset information is not available.", color="light")
-
         rows, cols = dataset_data["shape"]
-
         return dbc.Card(
             dbc.CardBody([
                 html.H6("Dataset Information", className="mb-3"),
@@ -3125,16 +2796,15 @@ def register_callbacks(dash_app):
             ]),
             className="border shadow-sm"
         )
-
+    
     @dash_app.callback(
-    Output("selected-k-report", "children"),
-    Input("selected-k-store", "data"),
-    Input("k-experiment-status", "data")
+        Output("selected-k-report", "children"),
+        Input("selected-k-store", "data"),
+        Input("k-experiment-status", "data")
     )
     def update_selected_k_report(selected_k_data, k_status):
         selected_k = selected_k_data.get("selected_k") if selected_k_data else None
         suggested_k = k_status.get("suggested_k") if k_status else None
-
         return dbc.Card(
             dbc.CardBody([
                 html.H6("Chosen k", className="mb-3"),
@@ -3143,11 +2813,11 @@ def register_callbacks(dash_app):
             ]),
             className="border shadow-sm"
         )
-
+    
     @dash_app.callback(
-    Output("config-summary", "children"),
-    Input("nmf-results-store", "data"),
-    Input("fuzzy-settings", "data")
+        Output("config-summary", "children"),
+        Input("nmf-results-store", "data"),
+        Input("fuzzy-settings", "data")
     )
     def update_config_summary(nmf_results, fuzzy_settings):
         return dbc.Card(
@@ -3165,48 +2835,40 @@ def register_callbacks(dash_app):
             ]),
             className="border shadow-sm"
         )
-
+    
     @dash_app.callback(
-    Output("report-w", "figure"),
-    Output("report-h", "figure"),
-    Input("nmf-results-store", "data")
+        Output("report-w", "figure"),
+        Output("report-h", "figure"),
+        Input("nmf-results-store", "data")
     )
     def update_final_report_plots(nmf_results):
         fig_w = go.Figure()
         fig_h = go.Figure()
-
         if not nmf_results:
             fig_w.add_annotation(text="Matrix W not available.", x=0.5, y=0.5, showarrow=False)
             fig_h.add_annotation(text="Matrix H not available.", x=0.5, y=0.5, showarrow=False)
             return fig_w, fig_h
-
         W = nmf_results.get("W_norm") or nmf_results.get("W")
         H = nmf_results.get("H_norm") or nmf_results.get("H")
-
         if W:
             fig_w.add_trace(go.Heatmap(z=W))
             fig_w.update_layout(title="Matrix W", template="plotly_white")
-
         if H:
             fig_h.add_trace(go.Heatmap(z=H))
             fig_h.update_layout(title="Matrix H", template="plotly_white")
-
         return fig_w, fig_h
-
+    
     @dash_app.callback(
-    Output("report-clusters", "children"),
-    Input("nmf-results-store", "data")
+        Output("report-clusters", "children"),
+        Input("nmf-results-store", "data")
     )
     def update_report_clusters(nmf_results):
         if not nmf_results:
             return dbc.Alert("Cluster information is not available.", color="light")
-
         final_clustering = nmf_results.get("final_clustering", "kmeans")
         clusters = nmf_results.get("clusters", {}).get(final_clustering)
-
         if clusters is None:
             return dbc.Alert("Cluster assignments are not available.", color="light")
-
         rows = [
             {
                 "Sample": f"Sample {i + 1}",
@@ -3214,7 +2876,6 @@ def register_callbacks(dash_app):
             }
             for i, c in enumerate(clusters)
         ]
-
         return dash_table.DataTable(
             data=rows,
             columns=[
@@ -3230,42 +2891,37 @@ def register_callbacks(dash_app):
                 "fontWeight": "bold"
             }
         )
-
+    
     @dash_app.callback(
-    Output("fuzzy-report", "children"),
-    Input("fuzzy-settings", "data")
+        Output("fuzzy-report", "children"),
+        Input("fuzzy-settings", "data")
     )
     def update_fuzzy_report(fuzzy_settings):
         if not fuzzy_settings or "results" not in fuzzy_settings:
             return dbc.Alert("Fuzzy explanations are not available.", color="light")
-
         results = fuzzy_settings["results"]
-
         return dbc.Card(
             dbc.CardBody([
                 html.H6("Fuzzy Explanation Summary", className="mb-3"),
-
                 html.H6("W Explanations"),
                 html.Ul([html.Li(x) for x in results.get("w_descriptions", [])]),
-
                 html.H6("H Explanations", className="mt-3"),
                 html.Ul([html.Li(x) for x in results.get("h_descriptions", [])]),
-
                 html.H6("Example Interpretations", className="mt-3"),
                 html.Ul([html.Li(x) for x in results.get("sample_descriptions", [])]),
             ]),
             className="border shadow-sm"
         )
-
+    
     @dash_app.callback(
-    Output("download-all-results", "data"),
-    Input("download-all-results-btn", "n_clicks"),
-    State("dataset-store", "data"),
-    State("selected-k-store", "data"),
-    State("k-experiment-status", "data"),
-    State("nmf-results-store", "data"),
-    State("fuzzy-settings", "data"),
-    prevent_initial_call=True
+        Output("download-all-results", "data"),
+        Input("download-all-results-btn", "n_clicks"),
+        State("dataset-store", "data"),
+        State("selected-k-store", "data"),
+        State("k-experiment-status", "data"),
+        State("nmf-results-store", "data"),
+        State("fuzzy-settings", "data"),
+        prevent_initial_call=True
     )
     def download_all_results(
         n_clicks,
@@ -3277,7 +2933,7 @@ def register_callbacks(dash_app):
     ):
         if not n_clicks:
             raise PreventUpdate
-
+        
         export_data = {
             "dataset_info": {
                 "filename": dataset_data.get("filename") if dataset_data else None,
@@ -3286,7 +2942,7 @@ def register_callbacks(dash_app):
             },
             "k_selection": {
                 "selected_k": selected_k_data.get("selected_k") if selected_k_data else None,
-                "experiment_status": k_experiment_status if k_experiment_status else {},
+                "experiment_status": k_experiment_status if k_experiment_status else{},
                 "metrics": k_experiment_status.get("metrics", []) if k_experiment_status else [],
             },
             "final_nmf": {
@@ -3317,7 +2973,7 @@ def register_callbacks(dash_app):
             },
             "export_note": "This file contains the real outputs generated by the NMF web application workflow."
         }
-
+        
         return {
             "content": json.dumps(export_data, indent=4, ensure_ascii=False),
             "filename": "all_results_real_outputs.json"
@@ -3337,7 +2993,6 @@ def register_callbacks(dash_app):
                 content_type, content_string = contents.split(',')
                 decoded = base64.b64decode(content_string)
                 uploaded_data = json.loads(decoded.decode('utf-8'))
-
                 response = requests.post(
                     "http://127.0.0.1:5000/api/import_json",
                     headers={"X-Session-ID": (session_data or {}).get("sid")},
@@ -3350,9 +3005,7 @@ def register_callbacks(dash_app):
             except Exception as e:
                 return dash.no_update, dbc.Alert(f"Errore durante l'import: {e}", color="danger", dismissable=True)
         return dash.no_update, dash.no_update
-
-
-
+    
     @dash_app.callback(
             [Output("variable-modal", "is_open"),
             Output("main-content", "style"),
@@ -3365,17 +3018,15 @@ def register_callbacks(dash_app):
         """Gestisce l'inserimento del numero di variabili da creare."""
         if not n_clicks:
             return [True, {"display": "none"}, None]
-
         try:
             num_vars = int(num_variables)
             if num_vars < 1:
                 raise ValueError
-
             file_handler.save_data({"num_variables": num_vars})
             return [False, {"display": "block", "position": "relative"}, num_vars]
         except:
             return [True, {"display": "none"}, None]
-
+    
     @dash_app.callback(
         Output("variable-title", "children"),
         Input("var-type-store", "data"),
@@ -3391,31 +3042,28 @@ def register_callbacks(dash_app):
             current_index = int(current_index)
         except (ValueError, TypeError):
             return "Invalid variable index."
-
         return f"Creation of  {var_type} Variables {current_index + 1} of {num_vars}"
-
+    
     @dash_app.callback(
-    [Output("current-index", "data"),
-    Output("back-button", "style"),
-    Output("next-button", "style"),
-    Output("next-button", "children"),
-    Output("url", "pathname", allow_duplicate=True)],
-    [Input("next-button", "n_clicks"),
-    Input("back-button", "n_clicks"),
-    Input("num-variables-store", "data")],
-    [State("current-index", "data")],
-    State("session-store", "data"),
-    prevent_initial_call='initial_duplicate'
-)
+        [Output("current-index", "data"),
+        Output("back-button", "style"),
+        Output("next-button", "style"),
+        Output("next-button", "children"),
+        Output("url", "pathname", allow_duplicate=True)],
+        [Input("next-button", "n_clicks"),
+        Input("back-button", "n_clicks"),
+        Input("num-variables-store", "data")],
+        [State("current-index", "data")],
+        State("session-store", "data"),
+        prevent_initial_call='initial_duplicate'
+    )
     def navigate_variables(next_clicks, back_clicks, num_variables, current_index, session_data=None):
         ctx = dash.callback_context
         redirect = dash.no_update
-
         if not ctx.triggered:
             current_index = 0 if current_index is None else current_index
         else:
             triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-
             if triggered_id == "next-button":
                 if current_index < num_variables - 1:
                     current_index += 1
@@ -3423,20 +3071,16 @@ def register_callbacks(dash_app):
                     redirect = "/"
             elif triggered_id == "back-button" and current_index > 0:
                 current_index -= 1
-
         num_variables = num_variables or 0
         is_last = (current_index == num_variables - 1)
-
         if num_variables <= 1:
             back_button_style = {'display': 'none'}
         else:
-            back_button_style = {'display': 'none'} if current_index == 0 else {'display': 'inline-block'}
-
+            back_button_style = {'display': 'none'} if current_index == 0 else {'display':'inline-block'}
         next_button_style = {'display': 'inline-block'}
         next_button_label = "Done" if is_last else "Next"
-
         return current_index, back_button_style, next_button_style, next_button_label, redirect
-
+    
     @dash_app.callback(
         [
             Output('variable-name', 'value', allow_duplicate=True),
@@ -3455,7 +3099,7 @@ def register_callbacks(dash_app):
         prevent_initial_call=True
     )
     def reset_static_fields(current_index, session_data=None):
-        default_terms = [dbc.ListGroupItem("No Terms Present", style={"textAlign": "center"})]
+        default_terms = [dbc.ListGroupItem("No Terms Present", style={"textAlign":"center"})]
         empty_graph = {
             'data': [],
             'layout': go.Layout(
@@ -3465,7 +3109,7 @@ def register_callbacks(dash_app):
             )
         }
         return '', 0, '', None, '', 'Create term', None, 0, default_terms, empty_graph
-
+    
     @dash_app.callback(
         [
             Output('param-a', 'value', allow_duplicate=True),
@@ -3481,8 +3125,7 @@ def register_callbacks(dash_app):
     )
     def reset_fuzzy_parameters(function_type, session_data=None):
         return '', '', '', '', '', ''
-
-
+    
     @dash_app.callback(
         Output('open-type', 'value'),  
         Input('open-type-radio', 'value'),
@@ -3490,7 +3133,7 @@ def register_callbacks(dash_app):
     )
     def update_open_type(selected_value, session_data=None):
         return selected_value
-
+    
     @dash_app.callback(
         Output('params-container', 'children'),
         [
@@ -3505,9 +3148,7 @@ def register_callbacks(dash_app):
     def update_params(var_type, function_type, num_variables, current_index, open_type, session_data=None):
         if not function_type or num_variables is None or current_index is None:
             return [] 
-
         params = []
-
         params.append(dbc.RadioItems(
             id='open-type-radio',
             options=[
@@ -3517,11 +3158,9 @@ def register_callbacks(dash_app):
             inline=True,
             value=open_type
         ))
-
         if function_type == 'Triangolare':
             params.append(dbc.Label("Parameter a:"))
             params.append(dbc.Input(id='param-a', type='number', value='', required=True))
-            
             params.append(dbc.Label("Parameter b:"))
             if open_type == 'left':  
                 params.append(dbc.Input(id='param-b', type='number', value='', disabled=True))
@@ -3529,60 +3168,50 @@ def register_callbacks(dash_app):
                 params.append(dbc.Input(id='param-b', type='number', value='', disabled=True))
             elif open_type is None:
                 params.append(dbc.Input(id='param-b', type='number', value='', required=True))
-                
             params.append(dbc.Label("Parameter c:"))
             params.append(dbc.Input(id='param-c', type='number', value='', required=True))
-            
             params.append(dbc.Input(id='param-d', style={'display': 'none'}))
             params.append(dbc.Input(id='param-mean', style={'display': 'none'}))
             params.append(dbc.Input(id='param-sigma', style={'display': 'none'}))
-
         elif function_type == 'Gaussian':
             params.append(dbc.Label("Parameter Mean:"))
             params.append(dbc.Input(id='param-mean', type='number', value='', required=True))
             params.append(dbc.Label("Parameter Sigma:"))
             params.append(dbc.Input(id='param-sigma', type='number', value='', required=True))
-            
             params.append(dbc.Input(id='param-a', style={'display': 'none'}))
             params.append(dbc.Input(id='param-b', style={'display': 'none'}))
             params.append(dbc.Input(id='param-c', style={'display': 'none'}))
             params.append(dbc.Input(id='param-d', style={'display': 'none'}))
-
         elif function_type == 'Trapezoidale':
             params.append(dbc.Label("Parameter a:"))
             params.append(dbc.Input(id='param-a', type='number', value='', required=True))
-            
             params.append(dbc.Label("Parameter b:"))
             if open_type == 'left':  
                 params.append(dbc.Input(id='param-b', type='number', value='', disabled=True))
             else:
                 params.append(dbc.Input(id='param-b', type='number', value='', required=True))
-            
             params.append(dbc.Label("Parameter c:"))
             if open_type == 'right':  
                 params.append(dbc.Input(id='param-c', type='number', value='', disabled=True))
             else:
                 params.append(dbc.Input(id='param-c', type='number', value='', required=True))
-                
             params.append(dbc.Label("Parameter d:"))
             params.append(dbc.Input(id='param-d', type='number', value='', required=True))
-
             params.append(dbc.Input(id='param-mean', style={'display': 'none'}))
             params.append(dbc.Input(id='param-sigma', style={'display': 'none'}))
-
         return params
-
+    
     @dash_app.callback(
-    Output('defuzzy-type', 'invalid'),
-    Input('defuzzy-type', 'value'),
-    State("session-store", "data"),
-    prevent_initial_call=True
-)
+        Output('defuzzy-type', 'invalid'),
+        Input('defuzzy-type', 'value'),
+        State("session-store", "data"),
+        prevent_initial_call=True
+    )
     def validate_defuzzy_type(selected_value, session_data=None):
         if selected_value is None:
             return True  
         return False  
-
+    
     @dash_app.callback(
         [
             Output('terms-list', 'children', allow_duplicate=True),
@@ -3631,21 +3260,15 @@ def register_callbacks(dash_app):
                     defuzzy_type, button_label, selected_term, session_data=None):
         """Gestisce la creazione, modifica ed eliminazione dei termini fuzzy.""" 
         ctx = dash.ctx
-
         if not ctx.triggered:
             return [dash.no_update] * 13
-
         triggered_id = ctx.triggered[0]['prop_id']
-
         if var_type == "input":
             defuzzy_type = None
-
         if open_type is None:
             open_type = []
-
         if isinstance(open_type, str) and ('left' in open_type or 'right' in open_type):
             function_type = f"{function_type}-open"
-
         # === CREAZIONE / MODIFICA ===
         if triggered_id == 'create-term-btn.n_clicks':             
             if button_label == 'Save change':
@@ -3658,16 +3281,13 @@ def register_callbacks(dash_app):
                         dash.no_update, dash.no_update, dash.no_update,
                         'Create term'
                     )
-
                 terms_list, is_error, message, figure, count = modify_term(
                     open_type, var_type, variable_name, domain_min, domain_max,
                     function_type, term_name, param_a, param_b,
                     param_c, param_d, param_mean, param_sigma,
                     defuzzy_type, selected_term, session_data
                 )
-
                 terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type, session_data)
-
                 return (
                     terms_list, is_error, message, figure,
                     '', '', '', '', '', '', '',
@@ -3681,7 +3301,6 @@ def register_callbacks(dash_app):
                     param_c, param_d, param_mean, param_sigma,
                     defuzzy_type, session_data=session_data
                 )
-
                 if message == "Term successfully created!":
                     terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type, session_data)
                     return (
@@ -3690,7 +3309,6 @@ def register_callbacks(dash_app):
                         count,
                         'Create term'
                     )
-
                 return (
                     terms_list, is_error, message, dash.no_update,
                     dash.no_update, dash.no_update, dash.no_update, dash.no_update,
@@ -3698,7 +3316,6 @@ def register_callbacks(dash_app):
                     dash.no_update,
                     'Create term'
                 )
-
         # === ELIMINAZIONE ===
         elif triggered_id == 'delete-term-btn.n_clicks':
             if not selected_term:
@@ -3710,15 +3327,13 @@ def register_callbacks(dash_app):
                     dash.no_update,
                     'Create term'
                 )
-
             delete_response = requests.post(f'http://127.0.0.1:5000/api/delete_term/{selected_term}',
                 headers={"X-Session-ID": (session_data or {}).get("sid")}
             )
-
             if delete_response.status_code == 200:
                 terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type, session_data)
                 return (
-                    terms_list, False, f"Term '{selected_term}' successfully eliminated!", figure,
+                    terms_list, False, f"Term '{selected_term}' successfully eliminated!",figure,
                     '', '', '', '', '', '', '',
                     count,
                     'Create term'
@@ -3731,8 +3346,6 @@ def register_callbacks(dash_app):
                     dash.no_update,
                     'Create term'
                 )
-
-
         # === PREPARA LA MODIFICA ===
         elif triggered_id == 'modify-term-btn.n_clicks':
             if not selected_term:
@@ -3743,7 +3356,6 @@ def register_callbacks(dash_app):
                     dash.no_update, dash.no_update, dash.no_update,
                     'Create term'
                 )
-
             url = f'http://127.0.0.1:5000/api/get_term/{variable_name}/{selected_term}'
             headers = {'Content-Type': 'application/json'}
             response = requests.get(url, headers={"X-Session-ID": (session_data or {}).get("sid")})
@@ -3775,59 +3387,41 @@ def register_callbacks(dash_app):
                     dash.no_update, dash.no_update,
                     'Create term'
                 )
-
         return [dash.no_update] * 13
-
-
-
+    
     def validate_params(open_type, params, domain_min, domain_max, function_type):
         """Valida i parametri di un termine fuzzy rispetto al dominio e al tipo di funzione.""" 
         if function_type == 'Triangolare':
             a, b, c = params.get('a'), params.get('b'), params.get('c')
-            
             if not (domain_min <= a <= domain_max and domain_min <= b <= domain_max and domain_min <= c <= domain_max):
                 return False, "Parameters a, b, c shall be between the minimum and maximum domains."
-            
             if not (a <= b <= c):
                 return False, "Parameters shall respect the order a <= b <= c."
-            
         elif function_type == 'Triangolare-open':
             if open_type == "left":
                 a, b, c = params.get('a'), params.get('a'), params.get('c')
             if open_type == "right":
                 a, b, c = params.get('a'), params.get('c'), params.get('c')
-            
             if not (domain_min <= a <= domain_max and domain_min <= b <= domain_max and domain_min <= c <= domain_max):
                 return False, "parameters a,b,c shall be between the maximum and minimum domains"
-            
             if not (a <= b <= c):
                 return False, "Parameters must respect the order a <= b <= c."
-        
         elif function_type == 'Gaussian':
             mean, sigma = params.get('mean'), params.get('sigma')
-            
             if not (domain_min <= mean <= domain_max):
-                return False, "The mean parameter must be between the minimum and maximum domains."
-            
+                return False, "The mean parameter must be between the minimum andmaximum domains."
             if sigma <= 0:
                 return False, "The sigma parameter must be greater than zero."
-            
         elif function_type == 'Gaussian-open':
             mean, sigma = params.get('mean'), params.get('sigma')
-            
             if not (domain_min <= mean <= domain_max):
-                return False, "The mean parameter must be between the minimum and maximum domains."
-            
-        
+                return False, "The mean parameter must be between the minimum andmaximum domains."
         elif function_type == 'Trapezoidale':
             a, b, c, d = params.get('a'), params.get('b'), params.get('c'), params.get('d')
-            
             if not (domain_min <= a <= domain_max and domain_min <= b <= domain_max and domain_min <= c <= domain_max and domain_min <= d <= domain_max):
                 return False, "Parameters a, b, c, d must be between the minimum and maximum domains."
-            
             if not (a <= b <= c <= d):
                 return False, "Parameters must respect the order a <= b <= c <= d."
-        
         elif function_type == 'Trapezoidale-open':
             if open_type == "left":
                 a, b, c, d = params.get('a'), params.get('a'), params.get('c'), params.get('d')
@@ -3835,12 +3429,10 @@ def register_callbacks(dash_app):
                 a, b, c, d = params.get('a'), params.get('b'), params.get('d'), params.get('d')
             if not (domain_min <= a <= domain_max and domain_min <= b <= domain_max and domain_min <= c <= domain_max and domain_min <= d <= domain_max):
                 return False, "Parameters a, b, c, d must be between the minimum and maximum domains."
-            
             if not (a <= b <= c <= d):
                 return False, "Parameters must respect the order a <= b <= c <= d."
-            
         return True, ""
-
+    
     def create_term(open_type, var_type, variable_name, domain_min, domain_max, function_type, term_name, param_a, param_b, param_c, param_d, param_mean, param_sigma, defuzzy_type=None, session_data=None):
         """Crea un nuovo termine fuzzy e aggiorna grafico e lista."""
         try:
@@ -3848,16 +3440,12 @@ def register_callbacks(dash_app):
             domain_max = int(domain_max)
         except (ValueError, TypeError):
             return dash.no_update, True, "The Domain values must be numbers.", dash.no_update, dash.no_update
-
         if not variable_name or not re.match(r"^[A-Za-z0-9_-]+$", variable_name):
             return dash.no_update, True, "The variable name is blank or contains invalid characters. Use only letters, numbers, hyphens, and underscores.", dash.no_update, dash.no_update
-        
         if not term_name or not re.match(r"^[A-Za-z0-9_-]+$", term_name):
-            return dash.no_update, True, "The term name is blank or contains invalid characters. Use only letters, numbers, hyphens, and underscores.", dash.no_update, dash.no_update
-
+            return dash.no_update, True, "The term name is blank or contains invalidcharacters. Use only letters, numbers, hyphens, and underscores.", dash.no_update, dash.no_update
         if domain_min > domain_max:
             return dash.no_update, True, "The minimum domain cannot be greater than the maximum domain.", dash.no_update, dash.no_update
-
         params = {}
         if function_type == 'Triangolare':
             params = {'a': param_a, 'b': param_b, 'c': param_c}
@@ -3882,7 +3470,6 @@ def register_callbacks(dash_app):
         is_valid, error_message = validate_params(open_type, params, domain_min, domain_max, function_type)
         if not is_valid:
             return dash.no_update, True, error_message, dash.no_update, dash.no_update
-
         payload = {
             'var_type': var_type,
             'term_name': term_name,
@@ -3892,25 +3479,20 @@ def register_callbacks(dash_app):
             'function_type': function_type,
             'params': params
         }
-
         if function_type and 'open' in function_type and open_type:
             payload['open_type'] = open_type
-
         if var_type == "output" and defuzzy_type:
             payload['defuzzy_type'] = defuzzy_type
-
         response = requests.post('http://127.0.0.1:5000/api/create_term',
                     headers={"X-Session-ID": (session_data or {}).get("sid")},
                     json=payload)
-
         if response.status_code == 201:
             terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type)
             return terms_list, True, "Term successfully created!", figure, count
         else:
             error_message = response.json().get('error', 'Unknown error')
             return dash.no_update, True, f"{error_message}", dash.no_update, dash.no_update
-
-
+    
     @dash_app.callback(
         [
             Output('selected-term', 'data'),
@@ -3925,18 +3507,15 @@ def register_callbacks(dash_app):
         default_style = {'cursor': 'pointer'}
         if not n_clicks_list or all(nc is None for nc in n_clicks_list):
             return dash.no_update, [default_style for _ in ids]
-
         ctx = dash.callback_context
         if not ctx.triggered:
             return dash.no_update, [default_style for _ in ids]
-
         triggered_prop = ctx.triggered[0]['prop_id']
         triggered_id_str = triggered_prop.split('.')[0]
         try:
             triggered_id = json.loads(triggered_id_str)
         except Exception:
             return dash.no_update, [default_style for _ in ids]
-
         selected_term = triggered_id.get('index')
         styles = []
         for item in ids:
@@ -3945,7 +3524,7 @@ def register_callbacks(dash_app):
             else:
                 styles.append(default_style)
         return selected_term, styles
-
+    
     @dash_app.callback(
         [
             Output('modify-term-btn', 'disabled'),
@@ -3959,14 +3538,12 @@ def register_callbacks(dash_app):
         if selected_term:
             return False, False
         return True, True
-
-
+    
     def delete_term(variable_name, term_name, var_type, session_data=None):
         """Elimina un termine fuzzy esistente."""
         response = requests.post(f'http://127.0.0.1:5000/api/delete_term/{term_name}',
             headers={"X-Session-ID": (session_data or {}).get("sid")}
         )
-
         if response.status_code == 200:
             terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type)
             return (
@@ -3983,7 +3560,7 @@ def register_callbacks(dash_app):
                 dash.no_update, dash.no_update, dash.no_update,
                 dash.no_update, dash.no_update
             )
-
+    
     def modify_term(open_type, var_type, variable_name, domain_min, domain_max, function_type, term_name, param_a, param_b, param_c, param_d, param_mean, param_sigma, defuzzy_type=None, selected_term=None, session_data=None):
         """Modifica un termine fuzzy esistente e aggiorna grafico e lista.""" 
         try:
@@ -3991,13 +3568,10 @@ def register_callbacks(dash_app):
             domain_max = int(domain_max)
         except (ValueError, TypeError):
             return dash.no_update, True, "The Domain values must be numbers.", dash.no_update, dash.no_update
-
         if not term_name or not re.match(r"^[A-Za-z0-9_-]+$", term_name):
-            return dash.no_update, True, "The term name is blank or contains invalid characters. Use only letters, numbers, hyphens, and underscores.", dash.no_update, dash.no_update
-
+            return dash.no_update, True, "The term name is blank or contains invalidcharacters. Use only letters, numbers, hyphens, and underscores.", dash.no_update, dash.no_update
         if domain_min > domain_max:
             return dash.no_update, True, "The minimum domain cannot be greater than the maximum domain.", dash.no_update, dash.no_update
-
         params = {}
         if function_type == 'Triangolare':
             params = {'a': param_a, 'b': param_b, 'c': param_c}
@@ -4019,12 +3593,10 @@ def register_callbacks(dash_app):
                 params = {'a': param_a, 'b': param_b, 'c': param_d, 'd': param_d}
         elif function_type == 'Classification':
             params = {}
-
         if function_type != 'Classification':
             is_valid, error_message = validate_params(open_type, params, domain_min, domain_max, function_type)
             if not is_valid:
                 return dash.no_update, True, error_message, dash.no_update, dash.no_update
-
         payload = {
             'term_name': term_name,
             'variable_name': variable_name,
@@ -4033,26 +3605,20 @@ def register_callbacks(dash_app):
             'function_type': function_type,
             'params': params
         }
-
         if function_type and 'open' in function_type and open_type:
             payload['open_type'] = open_type
-
         if var_type == "output" and defuzzy_type:
             payload['defuzzy_type'] = defuzzy_type
-
         response = requests.put(f'http://127.0.0.1:5000/api/modify_term/{selected_term}',
             headers={"X-Session-ID": (session_data or {}).get("sid")},
             json=payload)
-
         if response.status_code == 201:
             terms_list, figure, count = update_terms_list_and_figure(variable_name, var_type)
             return terms_list, False, "Term successfully modified!", figure, count
         else:
             error_message = response.json().get('error', 'Unknown error')
             return dash.no_update, True, f"{error_message}", dash.no_update, dash.no_update
-
-
-        
+    
     def update_terms_list_and_figure(variable_name, var_type, session_data=None):
         """Recupera i termini fuzzy e costruisce il grafico corrispondente."""
         if variable_name and var_type:
@@ -4064,17 +3630,14 @@ def register_callbacks(dash_app):
                     terms_list = []
                     input_data = []
                     output_data = []
-
                     input_variables = terms_data.get('input', {})
                     output_variables = terms_data.get('output', {})
-
                     if var_type == 'input' and variable_name in input_variables:
                         variable_data = input_variables[variable_name]
                         for term in variable_data['terms']:
                             term_name = term.get('term_name', '')
                             x = term.get('x')
                             y = term.get('y')
-                            
                             terms_list.append(
                                 dbc.ListGroupItem(
                                     term_name,
@@ -4085,14 +3648,12 @@ def register_callbacks(dash_app):
                             )
                             if x is not None and y is not None:
                                 input_data.append(go.Scatter(x=x, y=y, mode='lines', name=term_name))
-
                     elif var_type == 'output' and variable_name in output_variables:
                         variable_data = output_variables[variable_name]
                         for term in variable_data['terms']:
                             term_name = term.get('term_name', '')
                             x = term.get('x')
                             y = term.get('y')
-
                             terms_list.append(
                                 dbc.ListGroupItem(
                                     term_name,
@@ -4102,8 +3663,8 @@ def register_callbacks(dash_app):
                                 )
                             )
                             if x is not None and y is not None:
-                                output_data.append(go.Scatter(x=x, y=y, mode='lines', name=term_name))
-
+                                output_data.append(go.Scatter(x=x, y=y, mode='lines', name
+=term_name))
                     if var_type == 'input':
                         combined_figure = {
                             'data': input_data,
@@ -4155,7 +3716,6 @@ def register_callbacks(dash_app):
                                 yaxis={'title': 'Degree of membership'}
                             )
                         }
-
                     return terms_list, combined_figure, len(variable_data['terms'])
                 else:
                     return [html.Li("Error during the recovery of terms.")], dash.no_update, 0
@@ -4163,8 +3723,7 @@ def register_callbacks(dash_app):
                 return [html.Li(f"Error during data recovery: {str(e)}")], dash.no_update, 0
         else:
             return [], dash.no_update, 0
-
-
+    
     #Classificazione
     @dash_app.callback(
         Output("classification-warning-modal", "is_open"),
@@ -4177,7 +3736,7 @@ def register_callbacks(dash_app):
             if not confirmed or confirmed is None:
                 return True
         return False
-
+    
     @dash_app.callback(
         Output("classification-confirmed", "data"),
         Input("url", "pathname"),
@@ -4188,32 +3747,30 @@ def register_callbacks(dash_app):
         if pathname == "/choose-k":
             return False
         raise dash.exceptions.PreventUpdate
-
-
+    
     @dash_app.callback(
-    [
-        Output("classification-checkbox", "value", allow_duplicate=True),
-        Output("message", "children", allow_duplicate=True),
-        Output("terms-list", "children", allow_duplicate=True),
-        Output("graph", "figure", allow_duplicate=True),
-        Output("classification-warning-modal", "is_open", allow_duplicate=True),
-        Output("classification-confirmed", "data", allow_duplicate=True)  
-    ],
-    [
-        Input("confirm-classification", "n_clicks"),
-        Input("cancel-classification", "n_clicks")
-    ],
-    State("session-store", "data"),
-    prevent_initial_call=True
+        [
+            Output("classification-checkbox", "value", allow_duplicate=True),
+            Output("message", "children", allow_duplicate=True),
+            Output("terms-list", "children", allow_duplicate=True),
+            Output("graph", "figure", allow_duplicate=True),
+            Output("classification-warning-modal", "is_open", allow_duplicate=True),
+            Output("classification-confirmed", "data", allow_duplicate=True)  
+        ],
+        [
+            Input("confirm-classification", "n_clicks"),
+            Input("cancel-classification", "n_clicks")
+        ],
+        State("session-store", "data"),
+        prevent_initial_call=True
     )
-    def handle_classification_change(confirm_click, cancel_click, session_data=None):
+    def handle_classification_change(confirm_click, cancel_click, session_data=
+None):
         """Gestisce la conferma o l'annullamento della modalità Classification."""
         ctx = dash.callback_context
         if not ctx.triggered:
             raise dash.exceptions.PreventUpdate
-
         triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
-
         if triggered_id == "confirm-classification":
             try:
                 response = requests.post("http://127.0.0.1:5000/api/clear_output",
@@ -4245,14 +3802,12 @@ def register_callbacks(dash_app):
                     False,
                     False
                 )
-
         elif triggered_id == "cancel-classification":
             return (
                 [], "", dash.no_update, dash.no_update, False, False
             )
-
         raise dash.exceptions.PreventUpdate
-
+    
     @dash_app.callback(
         Output("classification-counter", "style"),
         Output("classification-counter", "children"),
@@ -4265,7 +3820,7 @@ def register_callbacks(dash_app):
         if classification_value and "Classification" in classification_value:
             return {"display": "block"}, f"Classification Class Created: {term_count}"
         return {"display": "none"}, ""
-
+    
     @dash_app.callback(
         Output('url', 'pathname'),
         Input("classification-checkbox", "value"),
@@ -4273,7 +3828,8 @@ def register_callbacks(dash_app):
         State("session-store", "data"),
         prevent_initial_call=True
     )
-    def handle_classification_redirect(checkbox_value, confirmed, session_data=None):
+    def handle_classification_redirect(checkbox_value, confirmed, session_data=
+None):
         if checkbox_value and "Classification" in checkbox_value:
             if confirmed:
                 return "/classification"
@@ -4292,27 +3848,21 @@ def register_callbacks(dash_app):
     def load_terms_on_classification(pathname, session_data=None):
         if pathname != "/classification":
             raise dash.exceptions.PreventUpdate
-
         try:
             response = requests.get("http://127.0.0.1:5000/api/get_terms",
                 headers={"X-Session-ID": (session_data or {}).get("sid")})
             if response.status_code != 200:
                 return [dbc.ListGroupItem("Error loading terms", style={"textAlign": "center"})], 0, ""
-
             data = response.json()
             output_data = data.get("output", {})
-
             if not output_data:
                 return [dbc.ListGroupItem("No Terms Present", style={"textAlign": "center"})], 0, ""
-
             # Prendi il nome della variabile output (ce n’è solo una in Classification)
             variable_name = next(iter(output_data))
             terms = output_data[variable_name].get("terms", [])
             count = len(terms)
-
             if not terms:
                 return [dbc.ListGroupItem("No Terms Present", style={"textAlign": "center"})], 0, variable_name
-
             term_items = [
                 dbc.ListGroupItem(
                     term["term_name"],
@@ -4322,15 +3872,11 @@ def register_callbacks(dash_app):
                 )
                 for term in terms
             ]
-
             return term_items, count, variable_name
-
         except Exception as e:
             return [dbc.ListGroupItem(f"Error: {e}", style={"textAlign": "center"})], 0, ""
-
-
-
-#Rules
+    
+    #Rules
     @dash_app.callback(
         Output("rules-container", "children"),
         Input("create-rule", "n_clicks"),
@@ -4346,22 +3892,17 @@ def register_callbacks(dash_app):
         """Crea una nuova regola fuzzy e la aggiunge al contenitore.""" 
         if n_clicks is None:
             return existing_rules
-
         if not all(all_input_vars) or not all(all_input_terms) or not output_var or not output_term:
             return existing_rules  
-
         if_part = " AND ".join([f"({var} IS {term})" for var, term in zip(all_input_vars, all_input_terms)])
-
         new_rule_text = f"IF {if_part} THEN ({output_var} IS {output_term})"
-
         new_rule = html.Div(
             new_rule_text,
             className="rule-item",
             style={"marginBottom": "10px", "padding": "5px", "border": "1px solid #ccc", "borderRadius": "5px"}
         )
-
         return existing_rules + [new_rule]
-
+    
     @dash_app.callback(
         [Output({"type": "if-dropdown", "index": ALL}, "options"),
         Output({"type": "if-term-dropdown", "index": ALL}, "options"),
@@ -4379,19 +3920,15 @@ def register_callbacks(dash_app):
                 headers={"X-Session-ID": (session_data or {}).get("sid")})
             if response.status_code != 200:
                 return [[]] * len(all_input_values), [[]] * len(all_input_values), [], None, []
-
             data = response.json()
             input_vars = list(data.get("input", {}).keys())
             output_data = data.get("output", {})
-
             output_var_name = next(iter(output_data), None)
-
             input_options_list = []
             for i, selected in enumerate(all_input_values):
                 used = [v for j, v in enumerate(all_input_values) if j != i and v]
                 available = [v for v in input_vars if v not in used]
                 input_options_list.append([{"label": v, "value": v} for v in available])
-
             if_term_options = []
             for selected in all_input_values:
                 if selected and selected in data["input"]:
@@ -4399,23 +3936,16 @@ def register_callbacks(dash_app):
                     if_term_options.append([{"label": t["label"], "value": t["value"]} for t in terms])
                 else:
                     if_term_options.append([])
-
             then_dropdown_options = [{"label": output_var_name, "value": output_var_name}] if output_var_name else []
             then_dropdown_value = output_var_name
-
             then_terms = []
             if output_var_name and output_var_name in output_data:
                 then_terms = [{"label": t["label"], "value": t["value"]} for t in output_data[output_var_name]]
-
             return input_options_list, if_term_options, then_dropdown_options, then_dropdown_value, then_terms
-
         except Exception as e:
             print(f"Error in update_dropdowns: {e}")
             return [[]] * len(all_input_values), [[]] * len(all_input_values), [], None, []
-
-
-
-
+    
     @dash_app.callback(
         [
                 Output('rules-list', 'children', allow_duplicate=True),
@@ -4439,8 +3969,6 @@ def register_callbacks(dash_app):
         """Crea una regola fuzzy e la salva nel backend.""" 
         if n_clicks is None:
             return current_rules, rules_data, False, ''
-
-
         if not all(input_vars) or not all(input_terms) or not output_variable or not output_term:
             missing = []
             if not all(v for v in input_vars): missing.append("input variable")
@@ -4448,18 +3976,12 @@ def register_callbacks(dash_app):
             if not output_variable: missing.append("output variable")
             if not output_term: missing.append("output term")
             return current_rules, rules_data, True, f'Please fill in: {", ".join(missing)}'
-
-
-
         inputs = [{"input_variable": var, "input_term": term} for var, term in zip(input_vars, input_terms)]
-
         rule_text = " AND ".join([f"({i['input_variable']} IS {i['input_term']})" for i in inputs])
         rule_text = f"IF {rule_text} THEN ({output_variable} IS {output_term})"
-
         existing_rules_texts = [rule['props']['children'] if isinstance(rule, dict) else rule.children for rule in current_rules]
         if rule_text in existing_rules_texts:
             return current_rules, rules_data, True, 'Error this rule already exists!'
-
         response = requests.post(
             "http://127.0.0.1:5000/api/create_rule",
             headers={"X-Session-ID": (session_data or {}).get("sid")},
@@ -4469,7 +3991,6 @@ def register_callbacks(dash_app):
                 "output_term": output_term
             }
         )
-
         if response.status_code == 201:
             rule_id = response.json().get("rule_id")
             rules_data.append({
@@ -4478,19 +3999,15 @@ def register_callbacks(dash_app):
                 "output_variable": output_variable,
                 "output_term": output_term
             })
-
             new_rule = dbc.ListGroupItem(
                 rule_text,
                 id={'type': 'rule-item', 'index': rule_id},
                 n_clicks=0,
                 style={"cursor": "pointer"}
             )
-
             return current_rules + [new_rule], rules_data, False, ''
-
         return current_rules, rules_data, True, 'Error while saving the rule'
-
-
+    
     @dash_app.callback(
         [Output("rules-list", "children", allow_duplicate=True),
         Output("delete-rule", "disabled"),
@@ -4505,15 +4022,12 @@ def register_callbacks(dash_app):
         """Evidenzia la regola selezionata e salva il relativo ID.""" 
         selected_id = None
         styles = []
-
         if not n_clicks:
             return dash.no_update, True, None
-
         for idx, click in enumerate(n_clicks):
             if click and click > 0:
                 selected_id = all_ids[idx]['index']
                 break
-
         rule_items = []
         for rule in rules_data:
             inputs = rule.get("inputs", [])
@@ -4522,11 +4036,9 @@ def register_callbacks(dash_app):
             )
             output_text = f"({rule['output_variable']} IS {rule['output_term']})"
             rule_text = f"IF {inputs_text} THEN {output_text}"
-
             style = {"cursor": "pointer"}
             if rule["id"] == selected_id:
                 style["backgroundColor"] = "#d1ecf1"
-
             rule_items.append(
                 dbc.ListGroupItem(
                     rule_text,
@@ -4535,10 +4047,8 @@ def register_callbacks(dash_app):
                     style=style
                 )
             )
-
         return rule_items, selected_id is None, selected_id
-
-
+    
     @dash_app.callback(
         Output("rules-store", "data", allow_duplicate=True),
         Input("delete-rule", "n_clicks"),
@@ -4547,21 +4057,18 @@ def register_callbacks(dash_app):
         State("session-store", "data"),
         prevent_initial_call=True
     )
-    def delete_selected_rule(n_clicks, selected_rule_id, rules_data, session_data=None):
+    def delete_selected_rule(n_clicks, selected_rule_id, rules_data, session_data
+=None):
         """Elimina la regola selezionata e aggiorna la lista."""
         if not selected_rule_id:
             raise dash.exceptions.PreventUpdate
-
         response = requests.delete(f"http://127.0.0.1:5000/api/delete_rule/{selected_rule_id}",
             headers={"X-Session-ID": (session_data or {}).get("sid")})
         if response.status_code != 200:
             return dash.no_update
-
         updated_rules = [r for r in rules_data if r["id"] != selected_rule_id]
         return updated_rules
-
-
-                
+    
     @dash_app.callback(
         [Output("rules-store", "data"),
         Output("input-variables", "data")],
@@ -4574,22 +4081,17 @@ def register_callbacks(dash_app):
             response_rules = requests.get("http://127.0.0.1:5000/api/get_rules",
                 headers={"X-Session-ID": sid})
             rules = response_rules.json() if response_rules.status_code == 200 else []
-
             response_vars = requests.get("http://127.0.0.1:5000/api/get_variables_and_terms",
                 headers={"X-Session-ID": sid})
             input_vars = []
-
             if response_vars.status_code == 200:
                 data = response_vars.json()
                 input_vars = list(data.get("input", {}).keys())
-
             return rules, input_vars
-
         except Exception as e:
             print(f"Error loading rules or variables: {e}")
             return [], []
-
-        
+    
     @dash_app.callback(
         Output("rules-list", "children"),
         Input("rules-store", "data"),
@@ -4605,7 +4107,6 @@ def register_callbacks(dash_app):
             )
             output_text = f"({rule['output_variable']} IS {rule['output_term']})"
             rule_text = f"IF {inputs_text} THEN {output_text}"
-
             rules_display.append(
                 dbc.ListGroupItem(
                     rule_text,
@@ -4615,8 +4116,7 @@ def register_callbacks(dash_app):
                 )
             )
         return rules_display
-
-
+    
     @dash_app.callback(
         [Output('input-container', 'children', allow_duplicate=True),
         Output('input-count', 'data', allow_duplicate=True)],
@@ -4628,17 +4128,14 @@ def register_callbacks(dash_app):
         """Inizializza il primo blocco IF-Term per la creazione di una regola.""" 
         if not input_variables:
             return [], 0
-
         first_input = html.Div([
             dbc.Label("IF", className="w-100 text-center mb-0"),
             dcc.Dropdown(id={"type": "if-dropdown", "index": 0}, placeholder="Select Input Variable", style={"width": "200px"}),
             dbc.Label("Term", className="w-100 text-center mb-0"),
             dcc.Dropdown(id={"type": "if-term-dropdown", "index": 0}, placeholder="Select Term", style={"width": "200px"}),
         ], className="d-flex flex-column align-items-center border rounded p-2", style={"minWidth": "220px"})
-
         return [first_input], 1
-
-
+    
     @dash_app.callback(
         [Output('input-container', 'children'),
         Output('input-count', 'data')],
@@ -4653,21 +4150,16 @@ def register_callbacks(dash_app):
         """Aggiunge dinamicamente nuovi blocchi IF-Term per la creazione delle regole.""" 
         if not input_variables or input_count >= len(input_variables):
             return current_inputs, input_count
-
         new_label = "IF" if input_count == 0 else "AND"
-
         new_input = html.Div([
             dbc.Label(new_label, className="w-100 text-center mb-0"),
             dcc.Dropdown(id={"type": "if-dropdown", "index": input_count}, placeholder="Select Input Variable", style={"width": "200px"}),
             dbc.Label("TERM", className="w-100 text-center mb-0"),
             dcc.Dropdown(id={"type": "if-term-dropdown", "index": input_count}, placeholder="Select Term", style={"width": "200px"}),
         ], className="d-flex flex-column align-items-center border rounded p-2", style={"minWidth": "220px"})
-
         current_inputs.append(new_input)
         return current_inputs, input_count + 1
     
-
-
     #Regole
     @dash_app.callback(
         Output("inference-data", "data"),
@@ -4692,33 +4184,31 @@ def register_callbacks(dash_app):
                         inputs_dict[var_name] = float(val)
                     except (ValueError, TypeError):
                         continue
-
             if not inputs_dict:
                 msg = html.Div(
                     "Inserire un valore per le variabili di input prima di eseguire l'inferenza.",
                     className="text-warning text-center"
                 )
                 return dash.no_update, [msg], [], {}
-
+            
             response = requests.post("http://127.0.0.1:5000/api/infer",
                 headers={"X-Session-ID": (session_data or {}).get("sid")},
                 json={"inputs": inputs_dict})
             if response.status_code != 200:
                 err = html.Div("Errore nell'inferenza lato server.", className="text-danger text-center")
                 return dash.no_update, [err], [], {}
-
+            
             result = response.json()
             rule_outputs = result.get("rule_outputs", [])
             outputs = result.get("results", {})
-
             if not rule_outputs:
                 msg = html.Div(
-                    "Nessuna regola attivata. Il valore inserito potrebbe essere fuori dal dominio definito.",
+                    "Nessuna regola attivata. Il valore inserito potrebbe essere fuori daldominio definito.",
                     className="text-warning text-center"
                 )
                 return dash.no_update, [msg], [], {}
-
-            # --- Sezione regole attivate ---
+            
+            # --- Sezione regole attivate --
             rules_display = []
             for rule in rule_outputs:
                 if rule.get("inputs"):
@@ -4730,27 +4220,25 @@ def register_callbacks(dash_app):
                     inputs_text = "?"
                 output_text = f"({rule['output_variable']} IS {rule['output_term']})"
                 activation = rule['activation']
-                rule_text = f"IF {inputs_text} THEN {output_text} → {round(activation, 3)}"
+                rule_text = f"IF {inputs_text} THEN {output_text} →{round(activation, 3)}"
                 color = "#28a745" if activation > 0 else "#6c757d"
                 rules_display.append(
                     html.P(rule_text, className="rule-inference text-center",
                            style={"fontSize": "0.9em", "color": color, "fontWeight": "600" if activation > 0 else "normal"})
                 )
-
-            # --- Classificazione: aggiorna winner-term-store ---
+            
+            # --- Classificazione: aggiorna winner-term-store --
             winner_term_store = {}
             if is_classification:
                 for var_name, value in outputs.items():
                     winner_term_store[var_name] = value
-
+            
             return result, rules_display, [], winner_term_store
-
         except Exception as e:
             print(f"Inference error: {e}")
             err = html.Div(f"Errore durante l'inferenza: {e}", className="text-danger text-center")
             return dash.no_update, [err], [], {}
-
-
+    
     @dash_app.callback(
         Output({"type": "classification-output", "variable": ALL}, "children"),
         Input("winner-term-store", "data"),
@@ -4760,12 +4248,10 @@ def register_callbacks(dash_app):
     def update_classification_results(winner_term_store, session_data=None):
         outputs = []
         ctx = callback_context
-
         for output in ctx.outputs_list:
             var_name = output["id"]["variable"]
             winner_class = winner_term_store.get(var_name, "N/A")
             outputs.append(winner_class)
-
         return outputs
     
     @dash_app.callback(
@@ -4777,9 +4263,7 @@ def register_callbacks(dash_app):
     def update_numeric_outputs(inference_data, session_data=None):
         if not inference_data:
             raise dash.exceptions.PreventUpdate
-
         outputs = inference_data.get("results", {})
-
         result = []
         for var_id in ctx.outputs_list:
             try:
@@ -4788,10 +4272,9 @@ def register_callbacks(dash_app):
                 result.append(f"{value:.2f}")
             except Exception as e:
                 result.append("0.00")
-
         return result
-
-#Plot Inferenza
+    
+    #Plot Inferenza
     @dash_app.callback(
         Output("inference-plot-modal", "is_open"),
         Output("inference-plot", "figure"),
@@ -4806,7 +4289,7 @@ def register_callbacks(dash_app):
     def toggle_inference_modal(open_click, close_click, is_open, input_values, input_ids, session_data=None):
         if ctx.triggered_id == "close-inference-plot":
             return False, ctx.no_update
-
+        
         inputs_dict = {}
         for var_name, val in zip(input_ids or [], input_values or []):
             if val is not None:
@@ -4814,7 +4297,6 @@ def register_callbacks(dash_app):
                     inputs_dict[var_name] = float(val)
                 except (ValueError, TypeError):
                     continue
-
         if not inputs_dict:
             fig = go.Figure()
             fig.add_annotation(
@@ -4823,7 +4305,7 @@ def register_callbacks(dash_app):
                 font=dict(size=18, color="red")
             )
             return True, fig
-
+        
         response = requests.post("http://127.0.0.1:5000/api/infer",
             headers={"X-Session-ID": (session_data or {}).get("sid")},
             json={"inputs": inputs_dict})
@@ -4835,10 +4317,9 @@ def register_callbacks(dash_app):
                 font=dict(size=16, color="red")
             )
             return True, fig
-
+        
         data = response.json()
         rule_outputs = data.get("rule_outputs", [])
-
         if not rule_outputs:
             fig = go.Figure()
             fig.add_annotation(
@@ -4847,21 +4328,19 @@ def register_callbacks(dash_app):
                 font=dict(size=16)
             )
             return True, fig
-
+        
         # Organizza per output_variable
         from collections import defaultdict
         grouped = defaultdict(list)
         for item in rule_outputs:
             key = item["output_variable"]
             grouped[key].append(item)
-
+        
         fig = go.Figure()
-
         for output_var, terms in grouped.items():
             x = [t["output_term"] for t in terms]
             y = [t["activation"] for t in terms]
             fig.add_trace(go.Bar(x=x, y=y, name=output_var))
-
         fig.update_layout(
             title="Activation of Output Terms",
             xaxis_title="Output Terms",
@@ -4870,9 +4349,8 @@ def register_callbacks(dash_app):
             barmode='group',
             template="plotly_white"
         )
-
         return True, fig
-
+    
     @dash_app.callback(
         Output("test-page-content", "children"),
         Output("is-classification", "data"),
@@ -4890,9 +4368,7 @@ def register_callbacks(dash_app):
                 "Nessun dato disponibile. Aggiungere variabili input e output prima di testare.",
                 className="text-danger"
             ), False, []
-
         terms = data["terms"]
-
         input_controls = []
         for var_name, var_data in terms.get("input", {}).items():
             domain = var_data.get("domain")
@@ -4919,7 +4395,6 @@ def register_callbacks(dash_app):
                     )
                 ], md=4, className="pe-2")
             )
-
         output_controls = []
         for idx, (var_name, var_data) in enumerate(terms.get("output", {}).items()):
             terms_list = var_data.get("terms", [])
@@ -4948,13 +4423,11 @@ def register_callbacks(dash_app):
                     className="pe-2" if idx % 2 == 0 else "ps-2"
                 )
             )
-
         is_classification_global = any(
             terms_list and terms_list[0].get("function_type") == "Classification"
             for terms_list in (v.get("terms", []) for v in terms.get("output", {}).values())
         )
         inference_input_ids = list(terms.get("input", {}).keys())
-
         # Controlla se esistono regole
         rules = data.get("rules", [])
         no_rules_warning = None
@@ -4964,7 +4437,6 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mb-3"
             )
-
         form_children = []
         if no_rules_warning:
             form_children.append(no_rules_warning)
@@ -5038,11 +4510,9 @@ def register_callbacks(dash_app):
             ),
             dbc.Row(output_controls, className="g-4 justify-content-center mb-3")
         ]
-
         content = html.Div(form_children, style={"padding": "1rem 2rem"})
-
         return content, is_classification_global, inference_input_ids
-
+    
     @dash_app.callback(
         Output("report-content", "children"),
         Input("url", "pathname"),
@@ -5089,7 +4559,7 @@ def register_callbacks(dash_app):
                 ]),
             ], className="mb-4"),
         ]
-
+    
     @dash_app.callback(
         Output("consensus-matrix-plot", "figure"),
         Output("consensus-note", "children"),
@@ -5106,23 +4576,20 @@ def register_callbacks(dash_app):
             "kmeans": "K-Means",
             "fcm": "Fuzzy C-Means"
         }
-
         fcm_mode_labels = {
             "hard": "Hard",
             "soft_dot": "Soft Dot",
             "soft_cosine": "Soft Cosine"
         }
-
         init_labels = {
             "random": "Random",
             "nndsvd": "NNDSVD",
             "custom1": "Custom 1",
             "custom2": "Custom 2"
         }
-
+        
         def empty_fig(message):
             fig_empty = go.Figure()
-
             fig_empty.update_layout(
                 title="Consensus Matrix",
                 template="plotly_white",
@@ -5130,7 +4597,6 @@ def register_callbacks(dash_app):
                 xaxis={"visible": False},
                 yaxis={"visible": False}
             )
-
             fig_empty.add_annotation(
                 text=message,
                 xref="paper",
@@ -5143,9 +4609,8 @@ def register_callbacks(dash_app):
                     "color": "#6c757d"
                 }
             )
-
             return fig_empty
-
+        
         if not k_status or "artifacts" not in k_status:
             return empty_fig(
                 "Run the k-selection experiment to generate consensus matrices."
@@ -5154,7 +4619,7 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-3"
             )
-
+        
         if selected_k is None:
             return empty_fig(
                 "Please select a valid k value."
@@ -5163,9 +4628,8 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-3"
             )
-
+        
         artifacts = k_status["artifacts"]
-
         if not init_method or init_method not in artifacts:
             return empty_fig(
                 "No consensus matrix is available for the selected initialization."
@@ -5174,10 +4638,9 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-3"
             )
-
+        
         init_artifacts = artifacts[init_method]
         k_key = str(selected_k)
-
         if k_key not in init_artifacts:
             return empty_fig(
                 f"No consensus matrix is available for k={selected_k}."
@@ -5186,29 +4649,25 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-3"
             )
-
+        
         consensus_block = init_artifacts[k_key].get("consensus", {})
-
         if method == "argmax":
             matrix = consensus_block.get("argmax")
             method_label = method_labels["argmax"]
             mode_label = None
-
         elif method == "kmeans":
             matrix = consensus_block.get("kmeans")
             method_label = method_labels["kmeans"]
             mode_label = None
-
         elif method == "fcm":
             matrix = consensus_block.get("fcm", {}).get(fcm_mode)
             method_label = method_labels["fcm"]
             mode_label = fcm_mode_labels.get(fcm_mode, fcm_mode)
-
         else:
             matrix = None
             method_label = method
             mode_label = None
-
+        
         if matrix is None:
             return empty_fig(
                 f"No consensus matrix is available for {method_label}."
@@ -5217,19 +4676,17 @@ def register_callbacks(dash_app):
                 color="warning",
                 className="mt-3"
             )
-
+        
         matrix = np.asarray(matrix, dtype=float)
-
         _, sample_labels = get_dataset_labels(dataset_data)
-
         if not sample_labels or len(sample_labels) != matrix.shape[0]:
             sample_labels = [f"Sample {i + 1}" for i in range(matrix.shape[0])]
-
+        
         if method == "fcm":
             title = f"Consensus Matrix - {method_label} ({mode_label}), k={selected_k}"
         else:
             title = f"Consensus Matrix - {method_label}, k={selected_k}"
-
+        
         fig = go.Figure(
             data=go.Heatmap(
                 z=matrix,
@@ -5256,7 +4713,6 @@ def register_callbacks(dash_app):
                 )
             )
         )
-
         fig.update_layout(
             title={
                 "text": title,
@@ -5274,19 +4730,16 @@ def register_callbacks(dash_app):
             xaxis_title="Samples",
             yaxis_title="Samples"
         )
-
         fig.update_xaxes(
             tickangle=45,
             showgrid=False
         )
-
         fig.update_yaxes(
             autorange="reversed",
             showgrid=False
         )
-
+        
         readable_init = init_labels.get(init_method, init_method)
-
         if method == "fcm":
             note_text = (
                 f"This consensus matrix represents pairwise sample co-clustering stability "
@@ -5303,7 +4756,7 @@ def register_callbacks(dash_app):
                 f"co-clustering relationships, whereas values close to 0 indicate unstable "
                 f"sample associations."
             )
-
+        
         note = dbc.Card(
             dbc.CardBody([
                 html.H6(
@@ -5314,7 +4767,6 @@ def register_callbacks(dash_app):
                         "color": "#2c3e50"
                     }
                 ),
-
                 html.P(
                     note_text,
                     className="mb-3",
@@ -5324,7 +4776,6 @@ def register_callbacks(dash_app):
                         "color": "#2c3e50"
                     }
                 ),
-
                 dbc.Row([
                     dbc.Col(
                         dbc.Badge(
@@ -5334,7 +4785,6 @@ def register_callbacks(dash_app):
                         ),
                         md=6
                     ),
-
                     dbc.Col(
                         dbc.Badge(
                             "1 = stable co-clustering",
@@ -5352,30 +4802,23 @@ def register_callbacks(dash_app):
                 "borderRadius": "10px"
             }
         )
-
         return fig, note
-
+    
     @dash_app.callback(
-    Output("download-k-results", "data"),
-    Input("download-k-metrics-btn", "n_clicks"),
-    State("k-experiment-status", "data"),
-    prevent_initial_call=True
+        Output("download-k-results", "data"),
+        Input("download-k-metrics-btn", "n_clicks"),
+        State("k-experiment-status", "data"),
+        prevent_initial_call=True
     )
     def download_k_metrics(n_clicks, k_status):
-
         if not n_clicks:
             raise PreventUpdate
-
         if not k_status:
             raise PreventUpdate
-
         metrics = k_status.get("displayed_metrics") or k_status.get("metrics")
-
         if not metrics:
             raise PreventUpdate
-
         df = pd.DataFrame(metrics)
-
         rename_map = {
             "init": "Initialization",
             "k": "k",
@@ -5386,9 +4829,7 @@ def register_callbacks(dash_app):
             "cophenetic_mean": "Cophenetic Correlation Mean",
             "cophenetic_std": "Cophenetic Correlation Std"
         }
-
         df = df.rename(columns=rename_map)
-
         return send_excel_file(
             df,
             "k_selection_metrics.xlsx",
@@ -5397,65 +4838,59 @@ def register_callbacks(dash_app):
         )
     
     @dash_app.callback(
-    Output("download-k-config", "data"),
-    Input("download-k-config-btn", "n_clicks"),
-    State("k-experiment-status", "data"),
-    State("selected-k-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("download-k-config", "data"),
+        Input("download-k-config-btn", "n_clicks"),
+        State("k-experiment-status", "data"),
+        State("selected-k-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def download_k_configuration(n_clicks, k_status, selected_k_data, dataset_data):
         if not n_clicks:
             raise PreventUpdate
-
         if not k_status:
             raise PreventUpdate
-
         config = {
             "dataset": dataset_data.get("display_name") or dataset_data.get("filename") if dataset_data else None,
             "selected_k": selected_k_data.get("selected_k") if selected_k_data else None,
             "k_experiment": k_status
         }
-
         return {
             "content": json.dumps(config, indent=4, ensure_ascii=False),
             "filename": "k_selection_configuration.json"
         }
-
+    
     @dash_app.callback(
-    Output("download-k-graph", "data"),
-    Input("download-k-graph-btn", "n_clicks"),
-    State("k-selection-graph", "figure"),
-    prevent_initial_call=True
+        Output("download-k-graph", "data"),
+        Input("download-k-graph-btn", "n_clicks"),
+        State("k-selection-graph", "figure"),
+        prevent_initial_call=True
     )
     def download_k_graph(n_clicks, figure):
         if not n_clicks or not figure:
             raise PreventUpdate
-
         fig = go.Figure(figure)
-
         image_bytes = fig.to_image(
             format="png",
             width=1200,
             height=700,
             scale=2
         )
-
         return dcc.send_bytes(
             lambda buffer: buffer.write(image_bytes),
             "k_selection_graph.png"
         )
-
+    
     @dash_app.callback(
-    Output("download-consensus-matrix", "data"),
-    Input("download-consensus-btn", "n_clicks"),
-    State("k-experiment-status", "data"),
-    State("consensus-method-selector", "value"),
-    State("consensus-init-selector", "value"),
-    State("consensus-fcm-mode-selector", "value"),
-    State("consensus-k-selector", "value"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("download-consensus-matrix", "data"),
+        Input("download-consensus-btn", "n_clicks"),
+        State("k-experiment-status", "data"),
+        State("consensus-method-selector", "value"),
+        State("consensus-init-selector", "value"),
+        State("consensus-fcm-mode-selector", "value"),
+        State("consensus-k-selector", "value"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def download_consensus_matrix(
         n_clicks,
@@ -5466,103 +4901,74 @@ def register_callbacks(dash_app):
         selected_k,
         dataset_data
     ):
-
         if not n_clicks:
             raise PreventUpdate
-
         if not k_status or "artifacts" not in k_status:
             raise PreventUpdate
-
         artifacts = k_status["artifacts"]
-
         if not init_method or init_method not in artifacts:
             raise PreventUpdate
-
         init_artifacts = artifacts[init_method]
-
         k_key = str(selected_k)
-
         if k_key not in init_artifacts:
             raise PreventUpdate
-
         consensus_block = init_artifacts[k_key].get("consensus", {})
-
         if method == "argmax":
             matrix = consensus_block.get("argmax")
             filename = f"consensus_argmax_k{selected_k}.csv"
-
         elif method == "kmeans":
             matrix = consensus_block.get("kmeans")
             filename = f"consensus_kmeans_k{selected_k}.csv"
-
         elif method == "fcm":
             matrix = consensus_block.get("fcm", {}).get(fcm_mode)
             filename = f"consensus_fcm_{fcm_mode}_k{selected_k}.csv"
-
         else:
             matrix = None
             filename = "consensus_matrix.csv"
-
         if matrix is None:
             raise PreventUpdate
-
         _, sample_labels = get_dataset_labels(dataset_data)
-
         if not sample_labels or len(sample_labels) != len(matrix):
             sample_labels = [f"Sample {i+1}" for i in range(len(matrix))]
-
         df = pd.DataFrame(
             matrix,
             index=sample_labels,
             columns=sample_labels
         )
-
         df.index.name = "Sample"
-
         return send_excel_file(
             df,
             filename.replace(".csv", ".xlsx"),
             sheet_name="Consensus Matrix",
             index=True
         )
-
+    
     @dash_app.callback(
-    Output("download-w-matrix", "data"),
-    Input("download-w-btn", "n_clicks"),
-    State("nmf-results-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("download-w-matrix", "data"),
+        Input("download-w-btn", "n_clicks"),
+        State("nmf-results-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def download_w_matrix(n_clicks, nmf_results, dataset_data):
-
         if not n_clicks:
             raise PreventUpdate
-
         if not nmf_results:
             raise PreventUpdate
-
         W = nmf_results.get("W_norm") or nmf_results.get("W")
-
         if W is None:
             raise PreventUpdate
-
         W = np.asarray(W, dtype=float)
-
         feature_labels, _ = get_dataset_labels(dataset_data)
-
         if not feature_labels or len(feature_labels) != W.shape[0]:
             feature_labels = [f"Feature {i+1}" for i in range(W.shape[0])]
-
         latent_factor_labels = [f"LF{i+1}" for i in range(W.shape[1])]
-
         df_w = pd.DataFrame(
             W,
             index=feature_labels,
             columns=latent_factor_labels
         )
-
         df_w.index.name = "Feature"
-
         return send_excel_file(
             df_w,
             "matrix_W.xlsx",
@@ -5570,44 +4976,32 @@ def register_callbacks(dash_app):
             index=True
         )
     
-
     @dash_app.callback(
-    Output("download-h-matrix", "data"),
-    Input("download-h-btn", "n_clicks"),
-    State("nmf-results-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("download-h-matrix", "data"),
+        Input("download-h-btn", "n_clicks"),
+        State("nmf-results-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def download_h_matrix(n_clicks, nmf_results, dataset_data):
-
         if not n_clicks:
             raise PreventUpdate
-
         if not nmf_results:
             raise PreventUpdate
-
         H = nmf_results.get("H_norm") or nmf_results.get("H")
-
         if H is None:
             raise PreventUpdate
-
         H = np.asarray(H, dtype=float)
-
         _, sample_labels = get_dataset_labels(dataset_data)
-
         if not sample_labels or len(sample_labels) != H.shape[1]:
             sample_labels = [f"Sample {i+1}" for i in range(H.shape[1])]
-
         latent_factor_labels = [f"LF{i+1}" for i in range(H.shape[0])]
-
         df_h = pd.DataFrame(
             H,
             index=latent_factor_labels,
             columns=sample_labels
         )
-
         df_h.index.name = "Latent Factor"
-
         return send_excel_file(
             df_h,
             "matrix_H.xlsx",
@@ -5616,38 +5010,29 @@ def register_callbacks(dash_app):
         )
     
     @dash_app.callback(
-    Output("download-clusters", "data"),
-    Input("download-clusters-btn", "n_clicks"),
-    State("nmf-results-store", "data"),
-    State("dataset-store", "data"),
-    prevent_initial_call=True
+        Output("download-clusters", "data"),
+        Input("download-clusters-btn", "n_clicks"),
+        State("nmf-results-store", "data"),
+        State("dataset-store", "data"),
+        prevent_initial_call=True
     )
     def download_clusters(n_clicks, nmf_results, dataset_data):
-
         if not n_clicks:
             raise PreventUpdate
-
         if not nmf_results:
             raise PreventUpdate
-
         final_clustering = nmf_results.get("final_clustering", "kmeans")
-
         clusters = nmf_results.get("clusters", {}).get(final_clustering)
-
         if clusters is None:
             raise PreventUpdate
-
         _, sample_labels = get_dataset_labels(dataset_data)
-
         if not sample_labels or len(sample_labels) != len(clusters):
             sample_labels = [f"Sample {i+1}" for i in range(len(clusters))]
-
         clustering_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
             "fcm_hard": "Fuzzy C-Means"
         }
-
         df_clusters = pd.DataFrame({
             "Sample": sample_labels,
             "Cluster": [int(c) + 1 for c in clusters],
@@ -5656,95 +5041,182 @@ def register_callbacks(dash_app):
                 final_clustering
             )
         })
-
         return send_excel_file(
             df_clusters,
             "cluster_assignments.xlsx",
             sheet_name="Cluster Assignments",
             index=False
         )
-
+    
     @dash_app.callback(
-    Output("download-w-explanations", "data"),
-    Input("download-w-explanations-btn", "n_clicks"),
-    State("fuzzy-settings", "data"),
-    prevent_initial_call=True
+        Output("download-w-explanations", "data"),
+        Input("download-w-explanations-btn", "n_clicks"),
+        State("fuzzy-settings", "data"),
+        prevent_initial_call=True
     )
     def download_w_explanations(n_clicks, fuzzy_settings):
         if not n_clicks:
             raise PreventUpdate
-
         if not fuzzy_settings or "results" not in fuzzy_settings:
             raise PreventUpdate
-
         results = fuzzy_settings["results"]
         descriptions = results.get("w_descriptions", [])
         table = results.get("w_fuzzy_table", [])
-
         export_data = {
             "descriptions": descriptions,
             "fuzzy_table": table
         }
-
         return {
             "content": json.dumps(export_data, indent=4, ensure_ascii=False),
             "filename": "w_fuzzy_explanations.json"
         }
-
-
+    
     @dash_app.callback(
-    Output("download-h-explanations", "data"),
-    Input("download-h-explanations-btn", "n_clicks"),
-    State("fuzzy-settings", "data"),
-    prevent_initial_call=True
+        Output("download-h-explanations", "data"),
+        Input("download-h-explanations-btn", "n_clicks"),
+        State("fuzzy-settings", "data"),
+        prevent_initial_call=True
     )
     def download_h_explanations(n_clicks, fuzzy_settings):
         if not n_clicks:
             raise PreventUpdate
-
         if not fuzzy_settings or "results" not in fuzzy_settings:
             raise PreventUpdate
-
         results = fuzzy_settings["results"]
         descriptions = results.get("h_descriptions", [])
         tables = results.get("h_fuzzy_tables", {})
-
         export_data = {
             "descriptions": descriptions,
             "fuzzy_tables": tables
         }
-
         return {
             "content": json.dumps(export_data, indent=4, ensure_ascii=False),
             "filename": "h_fuzzy_explanations.json"
         }
-
+    
     @dash_app.callback(
-    Output("download-example-explanations", "data"),
-    Input("download-example-explanations-btn", "n_clicks"),
-    State("fuzzy-settings", "data"),
-    prevent_initial_call=True
+        Output("download-example-explanations", "data"),
+        Input("download-example-explanations-btn", "n_clicks"),
+        State("fuzzy-settings", "data"),
+        prevent_initial_call=True
     )
     def download_example_explanations(n_clicks, fuzzy_settings):
         if not n_clicks:
             raise PreventUpdate
-
         if not fuzzy_settings or "results" not in fuzzy_settings:
             raise PreventUpdate
-
         results = fuzzy_settings["results"]
         descriptions = results.get("sample_descriptions", [])
         table = results.get("sample_fuzzy_table", [])
-
         export_data = {
             "descriptions": descriptions,
             "fuzzy_table": table
         }
-
         return {
             "content": json.dumps(export_data, indent=4, ensure_ascii=False),
             "filename": "example_fuzzy_explanations.json"
         }
+    
+    # ──Callback: Verifica disponibilità API per Fuxplainer ───────────────
+    @dash_app.callback(
+        Output("fuxplainer-status", "children"),
+        Input("check-api-btn", "n_clicks"),
+        prevent_initial_call=True
+    )
+    def check_api_availability(n_clicks):
+        if not n_clicks:
+            raise PreventUpdate
+        try:
+            resp = requests.get(
+                "http://localhost:5000/api/explanations",
+                timeout=3
+            )
+            data = resp.json()
+            if data.get("available"):
+                return dbc.Alert(
+                    [
+                        html.I(className="fas fa-check-circle me-2"),
+                        "API available."
+                    ],
+                    color="success",
+                    dismissable=True
+                )
+            else:
+                return dbc.Alert(
+                    [
+                        html.I(className="fas fa-exclamation-triangle me-2"),
+                        "API available but no rules have been generated. "
+                        "Press 'Generate Fuzzy Explanations'."
+                    ],
+                    color="warning",
+                    dismissable=True
+                )
+        except Exception as e:
+            return dbc.Alert(
+                [
+                    html.I(className="fas fa-times-circle me-2"),
+                    f"Unable to reach API: {str(e)}"
+                ],
+                color="danger",
+                dismissable=True
+            )
+    
+    # ──Callback: Invia a Fuxplainer (apre localhost:5001/fetch-from-nmf) ─
+    @dash_app.callback(
+        Output("fuxplainer-status", "children", allow_duplicate=True),
+        Input("send-to-fuxplainer-btn", "n_clicks"),
+        State("fuzzy-settings", "data"),
+        prevent_initial_call=True
+    )
+    def send_to_fuxplainer(n_clicks, fuzzy_settings):
+        if not n_clicks:
+            raise PreventUpdate
+        # Verifica che le explanations siano state generate
+        if not fuzzy_settings or not fuzzy_settings.get("fuzzy_completed"):
+            return dbc.Alert(
+                [
+                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    "No explanation have been generated. "
+                    "Press 'Generate Fuzzy Explanations'."
+                ],
+                color="warning",
+                dismissable=True
+            )
+        try:
+            # Verifica che Fuxplainer sia in ascolto su :5001
+            ping = requests.get("http://localhost:5001/", timeout=3)
+            fuxplainer_up = ping.status_code < 500
+        except Exception:
+            fuxplainer_up = False
+        
+        if not fuxplainer_up:
+            return dbc.Alert(
+                [
+                    html.I(className="fas fa-times-circle me-2"),
+                    "Fuxplainer not avaibe on",
+                    html.Code("http://localhost:5001"),
+                ],
+                color="danger",
+                dismissable=True
+            )
+        
+        # Tutto ok: restituisce un link cliccabile che apre Fuxplainer
+        # sul percorso /fetch-from-nmf (che recupera automaticamente i dati)
+        return dbc.Alert(
+            [
+                html.I(className="fas fa-check-circle me-2"),
+                "API and Fuxpleiner are ready! ",
+                html.A(
+                    "Open Fuxplainer → Importa da NMF",
+                    href="http://localhost:5001/fetch-from-nmf",
+                    target="_blank",
+                    className="alert-link"
+                ),
+                " to automatically load fuzzy rules."
+            ],
+            color="success",
+            dismissable=True
+        )
 
 #Report_page callbakcs
 def fetch_data(session_data=None):
@@ -5755,7 +5227,6 @@ def fetch_data(session_data=None):
             headers={"X-Session-ID": sid})
         response_rules = requests.get("http://127.0.0.1:5000/api/get_rules",
             headers={"X-Session-ID": sid})
-
         if response_terms.status_code == 200 and response_rules.status_code == 200:
             terms_data = response_terms.json()
             rules_data = response_rules.json()
@@ -5765,7 +5236,6 @@ def fetch_data(session_data=None):
     except Exception as e:
         print(f"Error while loading data: {e}")
         return None
-
 
 def generate_variable_section(variables, var_type):
     """Genera le card per visualizzare le variabili (input/output) nel report.""" 
@@ -5807,7 +5277,6 @@ def generate_rules_section(rules):
         )
         output_text = f"({rule['output_variable']} IS {rule['output_term']})"
         rule_text = f"IF {inputs_text} THEN {output_text}"
-
         children.append(
             html.Li(
                 rule_text,

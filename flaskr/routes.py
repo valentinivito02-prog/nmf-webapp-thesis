@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, send_file, Response
 import os
-from flaskr.file_handler import save_data, load_data, load_terms, save_terms, load_rule, save_rule
+from flaskr.file_handler import save_data, load_data, load_terms, save_terms, load_rule, save_rule, save_explanations, load_explanations
 import logging
 import skfuzzy as fuzz
 import numpy as np
@@ -716,3 +716,52 @@ def import_json():
         print(f"Error import:", e)
         return jsonify({"error": f"Error during import: {str(e)}"}), 500
 
+
+# ──────────────────────────────────────────────────────────────
+# API inter-webapp: espone le fuzzy explanations a Fuxplainer
+# ──────────────────────────────────────────────────────────────
+
+@bp.route("/explanations", methods=["GET", "OPTIONS"])
+def get_explanations():
+    """Espone le fuzzy explanations generate dal workflow NMF.
+
+    Fuxplainer (porta 5001) può leggerle con:
+        GET http://localhost:5000/api/explanations
+        Header: X-Session-ID: <sid>   (opzionale: se omesso usa 'default')
+
+    Risposta JSON:
+    {
+        "available": true,
+        "w_fuzzy_table":    [...],   # spiegazione matrice W
+        "h_fuzzy_tables":   {...},   # spiegazione matrice H per metodo
+        "sample_fuzzy_table": [...], # spiegazione esempi
+        "w_descriptions":   [...],
+        "h_descriptions":   [...],
+        "sample_descriptions": [...]
+    }
+    """
+    # Gestione preflight CORS (browser invia OPTIONS prima di GET cross-origin)
+    if request.method == "OPTIONS":
+        response = Response()
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Session-ID"
+        response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        return response, 204
+
+    explanations = load_explanations()
+
+    if explanations is None:
+        response = jsonify({
+            "available": False,
+            "message": (
+                "Nessuna explanation disponibile. "
+                "Completa il workflow NMF fino alla pagina Fuzzy per generarle."
+            )
+        })
+    else:
+        payload = {"available": True}
+        payload.update(explanations)
+        response = jsonify(payload)
+
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response, 200
