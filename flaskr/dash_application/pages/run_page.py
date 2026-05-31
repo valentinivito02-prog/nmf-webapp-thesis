@@ -15,12 +15,17 @@ def layout() -> html.Div:
         dbc.Row(
             dbc.Col(
                 dbc.Card([
+
                     dbc.CardHeader(
-                        html.H4("Step 3: Run Final NMF", className="card-title mb-0"),
+                        html.H4(
+                            "Step 3: Run Final NMF",
+                            className="card-title mb-0"
+                        ),
                         className="card-header-gradient"
                     ),
 
                     dbc.CardBody([
+
                         html.P(
                             "Run the final NMF analysis using the selected value of k and the desired configuration.",
                             className="text-muted mb-4"
@@ -34,6 +39,7 @@ def layout() -> html.Div:
                         ),
 
                         dbc.Row([
+
                             dbc.Col([
                                 html.H5("Clustering Algorithm", className="mb-3"),
                                 dcc.Dropdown(
@@ -69,6 +75,7 @@ def layout() -> html.Div:
                                     value='nmf_standard'
                                 ),
                             ], md=4),
+
                         ], className="mb-4"),
 
                         html.Div(
@@ -87,79 +94,168 @@ def layout() -> html.Div:
                         ),
 
                         html.H5("Results", className="mb-3 mt-4"),
+
                         dbc.Card(
                             dbc.CardBody([
-                                html.Div(
-                                    dcc.Tabs(
-                                        id="final-results-tabs",
-                                        value="tab-w",
-                                        colors={
-                                            "border": "#dee2e6",
-                                            "primary": "#52b2cf",
-                                            "background": "#f8f9fa"
-                                        },
-                                        children=[
 
-                                            dcc.Tab(
-                                                label="Matrix W",
-                                                value="tab-w",
-                                                style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "500"
-                                                },
-                                                selected_style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "600",
-                                                    "borderTop": "3px solid #52b2cf",
-                                                    "backgroundColor": "white"
-                                                },
-                                                children=[
-                                                    html.Div([
-                                                        dcc.Graph(
-                                                            id='matrix-w-plot',
-                                                            figure={}
-                                                        )
-                                                    ], className="mt-3")
-                                                ]
-                                            ),
+                                dcc.Tabs(
+                                    id="final-results-tabs",
+                                    value="tab-w",
+                                    colors={
+                                        "border": "#dee2e6",
+                                        "primary": "#52b2cf",
+                                        "background": "#f8f9fa"
+                                    },
+                                    children=[
 
-                                            dcc.Tab(
-                                                label="Matrix H",
-                                                value="tab-h",
-                                                style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "500"
-                                                },
-                                                selected_style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "600",
-                                                    "borderTop": "3px solid #52b2cf",
-                                                    "backgroundColor": "white"
-                                                },
-                                                children=[
-                                                    html.Div([
-                                                        dcc.Graph(
-                                                            id='matrix-h-plot',
-                                                            figure={}
-                                                        )
-                                                    ], className="mt-3")
-                                                ]
-                                            ),
+                                        dcc.Tab(
+                                            label="Matrix W",
+                                            value="tab-w",
+                                            style={
+                                                "padding": "10px",
+                                                "fontWeight": "500"
+                                            },
+                                            selected_style={
+                                                "padding": "10px",
+                                                "fontWeight": "600",
+                                                "borderTop": "3px solid #52b2cf",
+                                                "backgroundColor": "white"
+                                            },
+                                            children=[
+                                                html.Div([
 
-                                            dcc.Tab(
-                                                label="Cluster Assignments",
-                                                value="tab-clusters",
-                                                style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "500"
-                                                },
-                                                selected_style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "600",
-                                                    "borderTop": "3px solid #52b2cf",
-                                                    "backgroundColor": "white"
-                                                },
-                                                children=[
+                                                    dcc.Graph(
+                                                        id='matrix-w-plot',
+                                                        responsive=False,
+                                                        config={
+                                                            "displaylogo": False,
+                                                            "toImageButtonOptions": {
+                                                                "format": "png",
+                                                                "filename": "matrix_W_heatmap",
+                                                                "height": 1200,
+                                                                "width": 1600,
+                                                                "scale": 3
+                                                            },
+                                                            "modeBarButtonsToRemove": [
+                                                                "lasso2d",
+                                                                "select2d",
+                                                                "autoScale2d"
+                                                            ]
+                                                        },
+                                                        style={
+                                                            "borderRadius": "12px",
+                                                            "height": "700px"
+                                                        }
+                                                    ),
+
+                                                    html.Div(
+                                                        id="nmf-w-heatmap-note",
+                                                        className="mt-3"
+                                                    ),
+
+                                                    html.Div(
+                                                        dbc.Button(
+                                                            [
+                                                                html.I(className="fas fa-download me-2"),
+                                                                "Download W"
+                                                            ],
+                                                            id="download-w-btn",
+                                                            color="primary",
+                                                            style={
+                                                                "borderRadius": "10px",
+                                                                "fontWeight": "600",
+                                                                "padding": "10px 18px"
+                                                            }
+                                                        ),
+                                                        className="d-flex justify-content-end mt-3"
+                                                    )
+
+                                                ], className="mt-3")
+                                            ]
+                                        ),
+
+                                        dcc.Tab(
+                                            label="Matrix H",
+                                            value="tab-h",
+                                            style={
+                                                "padding": "10px",
+                                                "fontWeight": "500"
+                                            },
+                                            selected_style={
+                                                "padding": "10px",
+                                                "fontWeight": "600",
+                                                "borderTop": "3px solid #52b2cf",
+                                                "backgroundColor": "white"
+                                            },
+                                            children=[
+                                                html.Div([
+
+                                                    dcc.Graph(
+                                                        id='matrix-h-plot',
+                                                        responsive=False,
+                                                        config={
+                                                            "displaylogo": False,
+                                                            "toImageButtonOptions": {
+                                                                "format": "png",
+                                                                "filename": "matrix_H_heatmap",
+                                                                "height": 1200,
+                                                                "width": 1600,
+                                                                "scale": 3
+                                                            },
+                                                            "modeBarButtonsToRemove": [
+                                                                "lasso2d",
+                                                                "select2d",
+                                                                "autoScale2d"
+                                                            ]
+                                                        },
+                                                        style={
+                                                            "borderRadius": "12px",
+                                                            "height": "700px"
+                                                        }
+                                                    ),
+
+                                                    html.Div(
+                                                        id="nmf-h-heatmap-note",
+                                                        className="mt-3"
+                                                    ),
+
+                                                    html.Div(
+                                                        dbc.Button(
+                                                            [
+                                                                html.I(className="fas fa-download me-2"),
+                                                                "Download H"
+                                                            ],
+                                                            id="download-h-btn",
+                                                            color="primary",
+                                                            style={
+                                                                "borderRadius": "10px",
+                                                                "fontWeight": "600",
+                                                                "padding": "10px 18px"
+                                                            }
+                                                        ),
+                                                        className="d-flex justify-content-end mt-3"
+                                                    )
+
+                                                ], className="mt-3")
+                                            ]
+                                        ),
+
+                                        dcc.Tab(
+                                            label="Cluster Assignments",
+                                            value="tab-clusters",
+                                            style={
+                                                "padding": "10px",
+                                                "fontWeight": "500"
+                                            },
+                                            selected_style={
+                                                "padding": "10px",
+                                                "fontWeight": "600",
+                                                "borderTop": "3px solid #52b2cf",
+                                                "backgroundColor": "white"
+                                            },
+                                            children=[
+                                                html.Div([
+
                                                     html.Div(
                                                         id='cluster-output',
                                                         children=dbc.Alert(
@@ -167,61 +263,57 @@ def layout() -> html.Div:
                                                             color="light"
                                                         ),
                                                         className="mt-3"
-                                                    )
-                                                ]
-                                            ),
+                                                    ),
 
-                                            dcc.Tab(
-                                                label="Configuration Summary",
-                                                value="tab-final-summary",
-                                                style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "500"
-                                                },
-                                                selected_style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "600",
-                                                    "borderTop": "3px solid #52b2cf",
-                                                    "backgroundColor": "white"
-                                                },
-                                                children=[
                                                     html.Div(
-                                                        id="final-nmf-summary",
-                                                        className="mt-3"
+                                                        dbc.Button(
+                                                            [
+                                                                html.I(className="fas fa-download me-2"),
+                                                                "Download Clusters"
+                                                            ],
+                                                            id="download-clusters-btn",
+                                                            color="primary",
+                                                            style={
+                                                                "borderRadius": "10px",
+                                                                "fontWeight": "600",
+                                                                "padding": "10px 18px"
+                                                            }
+                                                        ),
+                                                        className="d-flex justify-content-end mt-3"
                                                     )
-                                                ]
-                                            ),
-                                        ]
-                                    ),
-                                    style={
-                                        "backgroundColor": "#f8f9fa",
-                                        "borderRadius": "8px",
-                                        "padding": "5px"
-                                    }
-                                ),
 
-                                html.Div([
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download W"],
-                                        id="download-w-btn",
-                                        color="success",
-                                        className="me-2"
-                                    ),
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download H"],
-                                        id="download-h-btn",
-                                        color="secondary",
-                                        className="me-2"
-                                    ),
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download Clusters"],
-                                        id="download-clusters-btn",
-                                        color="primary"
-                                    ),
-                                ], className="d-flex justify-content-end mt-3")
+                                                ])
+                                            ]
+                                        ),
+
+                                        dcc.Tab(
+                                            label="Configuration Summary",
+                                            value="tab-final-summary",
+                                            style={
+                                                "padding": "10px",
+                                                "fontWeight": "500"
+                                            },
+                                            selected_style={
+                                                "padding": "10px",
+                                                "fontWeight": "600",
+                                                "borderTop": "3px solid #52b2cf",
+                                                "backgroundColor": "white"
+                                            },
+                                            children=[
+                                                html.Div(
+                                                    id="final-nmf-summary",
+                                                    className="mt-3"
+                                                )
+                                            ]
+                                        ),
+
+                                    ]
+                                )
+
                             ]),
                             className="mb-4"
                         ),
+
                     ]),
 
                     dbc.CardFooter(
@@ -247,6 +339,7 @@ def layout() -> html.Div:
                         ], className="d-flex flex-column align-items-end"),
                         className="card-footer-gradient"
                     )
+
                 ], className="main-card"),
                 width=10
             ),

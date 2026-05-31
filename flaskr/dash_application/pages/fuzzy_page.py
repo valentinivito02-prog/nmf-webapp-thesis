@@ -181,17 +181,40 @@ def layout() -> html.Div:
                                                 },
 
                                                 children=[
-                                                    html.Div(
-                                                        id="fuzzy-w-output",
+                                                    html.Div([
 
-                                                        children=dbc.Alert(
-                                                            "W explanations will "
-                                                            "be displayed here.",
-                                                            color="light"
+                                                        html.Div(
+                                                            id="fuzzy-w-output",
+
+                                                            children=dbc.Alert(
+                                                                "W explanations will "
+                                                                "be displayed here.",
+                                                                color="light"
+                                                            ),
+
+                                                            className="mt-3"
                                                         ),
 
-                                                        className="mt-3"
-                                                    )
+                                                        html.Div(
+                                                            dbc.Button(
+                                                                [
+                                                                    html.I(
+                                                                        className="fas fa-download me-2"
+                                                                    ),
+                                                                    "Download W Explanations"
+                                                                ],
+                                                                id="download-w-explanations-btn",
+                                                                color="primary",
+                                                                style={
+                                                                    "borderRadius": "10px",
+                                                                    "fontWeight": "600",
+                                                                    "padding": "10px 18px"
+                                                                }
+                                                            ),
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+
+                                                    ])
                                                 ]
                                             ),
 
@@ -212,17 +235,40 @@ def layout() -> html.Div:
                                                 },
 
                                                 children=[
-                                                    html.Div(
-                                                        id="fuzzy-h-output",
+                                                    html.Div([
 
-                                                        children=dbc.Alert(
-                                                            "H explanations will "
-                                                            "be displayed here.",
-                                                            color="light"
+                                                        html.Div(
+                                                            id="fuzzy-h-output",
+
+                                                            children=dbc.Alert(
+                                                                "H explanations will "
+                                                                "be displayed here.",
+                                                                color="light"
+                                                            ),
+
+                                                            className="mt-3"
                                                         ),
 
-                                                        className="mt-3"
-                                                    )
+                                                        html.Div(
+                                                            dbc.Button(
+                                                                [
+                                                                    html.I(
+                                                                        className="fas fa-download me-2"
+                                                                    ),
+                                                                    "Download H Explanations"
+                                                                ],
+                                                                id="download-h-explanations-btn",
+                                                                color="primary",
+                                                                style={
+                                                                    "borderRadius": "10px",
+                                                                    "fontWeight": "600",
+                                                                    "padding": "10px 18px"
+                                                                }
+                                                            ),
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+
+                                                    ])
                                                 ]
                                             ),
 
@@ -243,17 +289,40 @@ def layout() -> html.Div:
                                                 },
 
                                                 children=[
-                                                    html.Div(
-                                                        id="fuzzy-examples",
+                                                    html.Div([
 
-                                                        children=dbc.Alert(
-                                                            "Example explanations "
-                                                            "will be displayed here.",
-                                                            color="light"
+                                                        html.Div(
+                                                            id="fuzzy-examples",
+
+                                                            children=dbc.Alert(
+                                                                "Example explanations "
+                                                                "will be displayed here.",
+                                                                color="light"
+                                                            ),
+
+                                                            className="mt-3"
                                                         ),
 
-                                                        className="mt-3"
-                                                    )
+                                                        html.Div(
+                                                            dbc.Button(
+                                                                [
+                                                                    html.I(
+                                                                        className="fas fa-download me-2"
+                                                                    ),
+                                                                    "Download Examples"
+                                                                ],
+                                                                id="download-example-explanations-btn",
+                                                                color="primary",
+                                                                style={
+                                                                    "borderRadius": "10px",
+                                                                    "fontWeight": "600",
+                                                                    "padding": "10px 18px"
+                                                                }
+                                                            ),
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+
+                                                    ])
                                                 ]
                                             ),
 
@@ -299,50 +368,7 @@ def layout() -> html.Div:
                                     }
                                 ),
 
-                                html.Div([
-
-                                    dbc.Button(
-                                        [
-                                            html.I(
-                                                className="fas fa-download me-2"
-                                            ),
-                                            "Download W Explanations"
-                                        ],
-                                        id="download-w-explanations-btn",
-                                        color="success",
-                                        className="me-2"
-                                    ),
-
-                                    dbc.Button(
-                                        [
-                                            html.I(
-                                                className="fas fa-download me-2"
-                                            ),
-                                            "Download H Explanations"
-                                        ],
-                                        id="download-h-explanations-btn",
-                                        color="secondary",
-                                        className="me-2"
-                                    ),
-
-                                    dbc.Button(
-                                        [
-                                            html.I(
-                                                className="fas fa-download me-2"
-                                            ),
-                                            "Download Examples"
-                                        ],
-                                        id="download-example-explanations-btn",
-                                        color="primary"
-                                    ),
-
-                                ], className="d-flex justify-content-end mt-3"),
-
                                 html.Hr(className="my-4"),
-
-                                # --------------------------------------------------
-                                # Sezione API Export / Integrazione con Fuxplainer
-                                # --------------------------------------------------
 
                                 dbc.Alert(
                                     [

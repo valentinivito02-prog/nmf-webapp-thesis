@@ -1217,18 +1217,33 @@ def register_callbacks(dash_app):
         return ""
     
     @dash_app.callback(
-        Output("k-selection-graph", "figure"),
-        Input("result-method-selector", "value"),
-        Input("clustering-selection", "value"),
-        Input("k-experiment-status", "data"),
-        prevent_initial_call=False
+    Output("k-selection-graph", "figure"),
+    Input("result-method-selector", "value"),
+    Input("clustering-selection", "value"),
+    Input("k-experiment-status", "data"),
+    prevent_initial_call=False
     )
     def update_k_selection_graph(selected_method, clustering_selection, k_status):
+
         fig = go.Figure()
+
+        fixed_layout = dict(
+            template="plotly_white",
+            autosize=False,
+            height=750,
+            margin=dict(l=50, r=50, t=80, b=130),
+            font=dict(
+                family="Poppins, Arial",
+                size=13,
+                color="#2c3e50"
+            ),
+            uirevision="k-selection-fixed-size"
+        )
+
         if not k_status or not k_status.get("metrics"):
             fig.update_layout(
                 title="k-selection graph",
-                template="plotly_white"
+                **fixed_layout
             )
             fig.add_annotation(
                 text="Run the k-selection experiment to visualize the results.",
@@ -1237,54 +1252,69 @@ def register_callbacks(dash_app):
                 x=0.5,
                 y=0.5,
                 showarrow=False,
-                font=dict(size=16)
+                font=dict(size=16, color="#6c757d")
             )
             return fig
+
         df = pd.DataFrame(k_status.get("metrics", []))
+
         if df.empty or "k" not in df.columns:
             fig.update_layout(
                 title="k-selection graph",
-                template="plotly_white"
+                **fixed_layout
             )
             return fig
+
         if not clustering_selection:
             clustering_selection = []
+
         suggested_k = k_status.get("suggested_k")
+
         method_labels = {
             "elbow": "Elbow Method - Reconstruction Error by k",
             "silhouette": "Silhouette Score by k",
             "cophenetic": "Cophenetic Index by k"
         }
+
         yaxis_labels = {
             "elbow": "Reconstruction Error",
             "silhouette": "Silhouette Score",
             "cophenetic": "Cophenetic Index"
         }
+
         metric_columns = {}
+
         if selected_method == "elbow":
             metric_columns = {
                 "Reconstruction Error": "reconstruction_error_mean"
             }
+
         elif selected_method == "silhouette":
             if "argmax" in clustering_selection:
                 metric_columns["Argmax"] = "silhouette_argmax_mean"
+
             if "kmeans" in clustering_selection:
                 metric_columns["K-Means"] = "silhouette_kmeans_mean"
+
             if "fcm" in clustering_selection:
                 metric_columns["Fuzzy C-Means"] = "silhouette_fcm_mean"
+
         elif selected_method == "cophenetic":
             if "argmax" in clustering_selection:
                 metric_columns["Argmax"] = "coph_argmax"
+
             if "kmeans" in clustering_selection:
                 metric_columns["K-Means"] = "coph_kmeans"
+
             if "fcm" in clustering_selection:
                 metric_columns["FCM Hard"] = "coph_fcm_hard"
                 metric_columns["FCM Soft Dot"] = "coph_fcm_soft_dot"
                 metric_columns["FCM Soft Cosine"] = "coph_fcm_soft_cosine"
+
         if not metric_columns:
             fig.update_layout(
                 title=method_labels.get(selected_method, "k-selection graph"),
-                template="plotly_white"
+                **fixed_layout
             )
             fig.add_annotation(
                 text="No compatible metric selected for the current clustering configuration.",
@@ -1293,17 +1323,22 @@ def register_callbacks(dash_app):
                 x=0.5,
                 y=0.5,
                 showarrow=False,
-                font=dict(size=15)
+                font=dict(size=15, color="#6c757d")
             )
             return fig
+
         if "init" not in df.columns:
             df["init"] = "default"
+
         init_values = sorted(df["init"].dropna().unique())
+
         for init_value in init_values:
             init_df = df[df["init"] == init_value].sort_values("k")
+
             for metric_label, column_name in metric_columns.items():
                 if column_name not in init_df.columns:
                     continue
+
                 fig.add_trace(
                     go.Scatter(
                         x=init_df["k"],
@@ -1321,6 +1356,7 @@ def register_callbacks(dash_app):
                         )
                     )
                 )
+
         if suggested_k is not None:
             fig.add_vline(
                 x=suggested_k,
@@ -1330,28 +1366,35 @@ def register_callbacks(dash_app):
                 annotation_text=f"Suggested k = {suggested_k}",
                 annotation_position="top right"
             )
+
         fig.update_layout(
             title=method_labels.get(selected_method, "k-selection graph"),
             xaxis_title="k",
             yaxis_title=yaxis_labels.get(selected_method, "Metric value"),
-            template="plotly_white",
             hovermode="x unified",
             legend=dict(
                 title="Metric / Initialization",
                 orientation="h",
                 yanchor="bottom",
-                y=-0.35,
+                y=-0.32,
                 xanchor="center",
                 x=0.5
             ),
-            margin=dict(l=40, r=40, t=70, b=120),
-            height=600
+            **fixed_layout
         )
+
         fig.update_xaxes(
             dtick=1,
-            tickmode="linear"
+            tickmode="linear",
+            automargin=True
         )
+
+        fig.update_yaxes(
+            automargin=True
+        )
+
         return fig
+
     
     @dash_app.callback(
         Output("confirm-k-message", "children"),
@@ -1887,87 +1930,373 @@ def register_callbacks(dash_app):
                 return "/fuzzy", ""
             return dash.no_update, dash.no_update
     
+
     @dash_app.callback(
-        Output("matrix-w-plot", "figure"),
-        Output("matrix-h-plot", "figure"),
-        Input("nmf-results-store", "data"),
-        State("dataset-store", "data"),
-        prevent_initial_call=False
+    Output("matrix-w-plot", "figure"),
+    Output("matrix-h-plot", "figure"),
+    Output("nmf-w-heatmap-note", "children"),
+    Output("nmf-h-heatmap-note", "children"),
+    Input("nmf-results-store", "data"),
+    State("dataset-store", "data"),
+    prevent_initial_call=False
     )
     def update_final_nmf_plots(nmf_results, dataset_data):
+
         fig_w = go.Figure()
         fig_h = go.Figure()
+
+        custom_colorscale = [
+            [0.0, "blue"],
+            [0.5, "white"],
+            [1.0, "red"]
+        ]
+
+        fixed_layout_w = dict(
+            template="plotly_white",
+            autosize=False,
+            height=700,
+            margin=dict(l=90, r=90, t=80, b=110),
+            font=dict(
+                family="Poppins, Arial",
+                size=13,
+                color="#2c3e50"
+            ),
+            uirevision="matrix-w-fixed-size"
+        )
+
+        fixed_layout_h = dict(
+            template="plotly_white",
+            autosize=False,
+            height=700,
+            margin=dict(l=90, r=90, t=80, b=130),
+            font=dict(
+                family="Poppins, Arial",
+                size=13,
+                color="#2c3e50"
+            ),
+            uirevision="matrix-h-fixed-size"
+        )
+
         if not nmf_results or not nmf_results.get("nmf_completed"):
-            for fig, title, text in [
-                (fig_w, "Matrix W Heatmap", "Run the final NMF to visualize Matrix W."),
-                (fig_h, "Matrix H Heatmap", "Run the final NMF to visualize Matrix H.")
-            ]:
-                fig.update_layout(title=title, template="plotly_white")
-                fig.add_annotation(
-                    text=text,
-                    xref="paper",
-                    yref="paper",
-                    x=0.5,
-                    y=0.5,
-                    showarrow=False,
-                    font=dict(size=16)
-                )
-            return fig_w, fig_h
-        
+
+            fig_w.update_layout(
+                title="Matrix W Heatmap",
+                **fixed_layout_w
+            )
+            fig_w.add_annotation(
+                text="Run the final NMF to visualize Matrix W.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color="#6c757d")
+            )
+
+            fig_h.update_layout(
+                title="Matrix H Heatmap",
+                **fixed_layout_h
+            )
+            fig_h.add_annotation(
+                text="Run the final NMF to visualize Matrix H.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color="#6c757d")
+            )
+
+            return fig_w, fig_h, "", ""
+
         try:
             W = nmf_results.get("W_norm") or nmf_results.get("W")
             H = nmf_results.get("H_norm") or nmf_results.get("H")
+
             if W is None or H is None:
                 artifacts = nmf_results.get("artifacts", {})
                 W = artifacts.get("W_norm") or artifacts.get("W")
                 H = artifacts.get("H_norm") or artifacts.get("H")
+
             if W is None or H is None:
                 raise ValueError("W or H matrix not found in NMF results.")
+
             W = np.asarray(W, dtype=float)
             H = np.asarray(H, dtype=float)
-            
+
             feature_labels, sample_labels = get_dataset_labels(dataset_data)
+
             if not feature_labels or len(feature_labels) != W.shape[0]:
                 feature_labels = [f"Feature {i + 1}" for i in range(W.shape[0])]
+
             if not sample_labels or len(sample_labels) != H.shape[1]:
                 sample_labels = [f"Sample {i + 1}" for i in range(H.shape[1])]
+
             latent_factor_labels = [f"LF{i + 1}" for i in range(W.shape[1])]
-            
+
             fig_w = go.Figure(
                 data=go.Heatmap(
                     z=W,
                     x=latent_factor_labels,
                     y=feature_labels,
-                    colorbar=dict(title="Value")
+                    colorscale=custom_colorscale,
+                    zmin=0,
+                    zmax=1,
+                    colorbar=dict(
+                        title="Activation",
+                        thickness=14,
+                        len=0.75,
+                        tickvals=[0, 0.5, 1],
+                        ticktext=["Low", "Medium", "High"]
+                    ),
+                    hovertemplate=(
+                        "Feature: %{y}<br>"
+                        "Latent Factor: %{x}<br>"
+                        "Value: %{z:.3f}<extra></extra>"
+                    )
                 )
             )
+
             fig_w.update_layout(
                 title="Matrix W Heatmap",
                 xaxis_title="Latent Factors",
                 yaxis_title="Features",
-                template="plotly_white",
-                height=600
+                **fixed_layout_w
             )
-            
+
+            fig_w.update_xaxes(
+                tickangle=45,
+                showgrid=False,
+                automargin=True
+            )
+
+            fig_w.update_yaxes(
+                autorange="reversed",
+                showgrid=False,
+                automargin=True
+            )
+
+            n_samples = len(sample_labels)
+            tick_step_h = max(1, n_samples // 12)
+
+            tick_indices_h = list(range(0, n_samples, tick_step_h))
+
+            if (n_samples - 1) not in tick_indices_h:
+                tick_indices_h.append(n_samples - 1)
+
+            tick_values_h = [sample_labels[i] for i in tick_indices_h]
+            tick_text_h = [sample_labels[i] for i in tick_indices_h]
+
             fig_h = go.Figure(
                 data=go.Heatmap(
                     z=H,
                     x=sample_labels,
                     y=[f"LF{i + 1}" for i in range(H.shape[0])],
-                    colorbar=dict(title="Value")
+                    colorscale=custom_colorscale,
+                    zmin=0,
+                    zmax=1,
+                    colorbar=dict(
+                        title="Activation",
+                        thickness=14,
+                        len=0.75,
+                        tickvals=[0, 0.5, 1],
+                        ticktext=["Low", "Medium", "High"]
+                    ),
+                    hovertemplate=(
+                        "Latent Factor: %{y}<br>"
+                        "Sample: %{x}<br>"
+                        "Value: %{z:.3f}<extra></extra>"
+                    )
                 )
             )
+
             fig_h.update_layout(
                 title="Matrix H Heatmap",
                 xaxis_title="Samples",
                 yaxis_title="Latent Factors",
-                template="plotly_white",
-                height=600
+                **fixed_layout_h
             )
-            return fig_w, fig_h
+
+            fig_h.update_xaxes(
+                tickmode="array",
+                tickvals=tick_values_h,
+                ticktext=tick_text_h,
+                tickangle=35,
+                tickfont=dict(size=10),
+                showgrid=False,
+                automargin=True
+            )
+
+            fig_h.update_yaxes(
+                autorange="reversed",
+                showgrid=False,
+                tickfont=dict(size=12),
+                automargin=True
+            )
+
+            w_download_note = html.P(
+                "Use the camera icon in the graph toolbar to download the Matrix W heatmap as PNG.",
+                className="text-muted mt-3 mb-0",
+                style={
+                    "fontSize": "13px"
+                }
+            )
+
+            h_download_note = html.P(
+                "Use the camera icon in the graph toolbar to download the Matrix H heatmap as PNG.",
+                className="text-muted mt-3 mb-0",
+                style={
+                    "fontSize": "13px"
+                }
+            )
+
+            w_note = dbc.Card(
+                dbc.CardBody([
+
+                    html.H6(
+                        "Matrix W Heatmap Interpretation",
+                        className="mb-2",
+                        style={
+                            "fontWeight": "700",
+                            "color": "#2c3e50"
+                        }
+                    ),
+
+                    html.P(
+                        (
+                            "This heatmap represents the activation intensity of dataset features "
+                            "across latent factors in Matrix W. Higher values indicate that a feature "
+                            "contributes more strongly to a specific latent factor."
+                        ),
+                        style={
+                            "fontSize": "14px",
+                            "color": "#2c3e50"
+                        }
+                    ),
+
+                    dbc.Row([
+                        dbc.Col(
+                            dbc.Badge(
+                                "Blue = low feature contribution",
+                                color="primary",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                        dbc.Col(
+                            dbc.Badge(
+                                "White = moderate contribution",
+                                color="light",
+                                text_color="dark",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                        dbc.Col(
+                            dbc.Badge(
+                                "Red = high feature contribution",
+                                color="danger",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                    ], className="g-2 mt-2")
+
+                ]),
+                className="mt-3 shadow-sm border-0",
+                style={
+                    "backgroundColor": "#f8fbfd",
+                    "borderLeft": "5px solid #52b2cf",
+                    "borderRadius": "10px"
+                }
+            )
+
+            h_note = dbc.Card(
+                dbc.CardBody([
+
+                    html.H6(
+                        "Matrix H Heatmap Interpretation",
+                        className="mb-2",
+                        style={
+                            "fontWeight": "700",
+                            "color": "#2c3e50"
+                        }
+                    ),
+
+                    html.P(
+                        (
+                            "This heatmap represents the activation intensity of latent factors "
+                            "across samples in Matrix H. Higher values indicate that a sample is "
+                            "more strongly associated with a specific latent factor."
+                        ),
+                        style={
+                            "fontSize": "14px",
+                            "color": "#2c3e50"
+                        }
+                    ),
+
+                    dbc.Row([
+                        dbc.Col(
+                            dbc.Badge(
+                                "Blue = low sample activation",
+                                color="primary",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                        dbc.Col(
+                            dbc.Badge(
+                                "White = moderate activation",
+                                color="light",
+                                text_color="dark",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                        dbc.Col(
+                            dbc.Badge(
+                                "Red = high sample activation",
+                                color="danger",
+                                className="p-2 w-100"
+                            ),
+                            md=4
+                        ),
+                    ], className="g-2 mt-2")
+
+                ]),
+                className="mt-3 shadow-sm border-0",
+                style={
+                    "backgroundColor": "#f8fbfd",
+                    "borderLeft": "5px solid #52b2cf",
+                    "borderRadius": "10px"
+                }
+            )
+
+            return (
+                fig_w,
+                fig_h,
+
+                html.Div([
+                    w_download_note,
+                    w_note
+                ]),
+
+                html.Div([
+                    h_download_note,
+                    h_note
+                ])
+            )
+
         except Exception as e:
+
             fig_error = go.Figure()
-            fig_error.update_layout(template="plotly_white")
+            fig_error.update_layout(
+                title="Matrix Heatmap",
+                template="plotly_white",
+                autosize=False,
+                height=700,
+                uirevision="matrix-error-fixed-size"
+            )
             fig_error.add_annotation(
                 text=f"Error while generating heatmaps:<br>{str(e)}",
                 xref="paper",
@@ -1977,202 +2306,9 @@ def register_callbacks(dash_app):
                 showarrow=False,
                 font=dict(size=15, color="red")
             )
-            return fig_error, fig_error
+
+            return fig_error, fig_error, "", ""
     
-    def build_fuzzy_card(title, rows, first_col_name):
-        if not rows:
-            return dbc.Alert(
-                f"No data available for {title}.",
-                color="light"
-            )
-        cards = []
-        for row in rows:
-            row_title = row.get(first_col_name, "Item")
-            table_rows = []
-            for key, value in row.items():
-                if key == first_col_name:
-                    continue
-                table_rows.append(
-                    html.Tr([
-                        html.Td(
-                            html.Strong(str(key)),
-                            style={
-                                "width": "40%",
-                                "verticalAlign": "middle"
-                            }
-                        ),
-                        html.Td(
-                            str(value),
-                            style={
-                                "verticalAlign": "middle"
-                            }
-                        )
-                    ])
-                )
-            cards.append(
-                dbc.Card(
-                    [
-                        dbc.CardHeader(
-                            html.H5(
-                                str(row_title),
-                                className="mb-0 text-white"
-                            ),
-                            style={
-                                "background": "linear-gradient(90deg, #52b2cf, #3b9dbb)",
-                                "padding": "12px 18px",
-                                "borderBottom": "none"
-                            }
-                        ),
-                        dbc.CardBody(
-                            dbc.Table(
-                                [
-                                    html.Thead(
-                                        html.Tr([
-                                            html.Th(
-                                                "Element",
-                                                style={
-                                                    "backgroundColor": "#f8f9fa",
-                                                    "fontWeight": "600"
-                                                }
-                                            ),
-                                            html.Th(
-                                                "Fuzzy Label",
-                                                style={
-                                                    "backgroundColor": "#f8f9fa",
-                                                    "fontWeight": "600"
-                                                }
-                                            )
-                                        ])
-                                    ),
-                                    html.Tbody(table_rows)
-                                ],
-                                bordered=True,
-                                hover=True,
-                                responsive=True,
-                                striped=True,
-                                size="sm",
-                                className="mb-0"
-                            ),
-                            style={
-                                "padding": "18px"
-                            }
-                        )
-                    ],
-                    className="mb-4 shadow-sm border-0",
-                    style={
-                        "borderRadius": "12px",
-                        "overflow": "hidden"
-                    }
-                )
-            )
-        return html.Div(cards)
-    
-    def build_h_fuzzy_cards(h_fuzzy_tables):
-        if not h_fuzzy_tables:
-            return dbc.Alert(
-                    "No H fuzzy explanations available.",
-                    color="light"
-            )
-        sections = []
-        method_labels = {
-            "argmax": "Argmax",
-            "kmeans": "K-Means",
-            "fcm_hard": (
-                "Fuzzy C-Means "
-                "(Hard assignment)"
-            ),
-            "fcm_soft_dot": (
-                "Fuzzy C-Means "
-                "(Soft membership - Dot product)"
-            ),
-            "fcm_soft_cosine": (
-                "Fuzzy C-Means "
-                "(Soft membership - Cosine similarity)"
-            )
-        }
-        for method_name, rows in h_fuzzy_tables.items():
-            method_title = method_labels.get(
-                method_name,
-                method_name
-            )
-            sections.append(
-                html.Div([
-                    html.H5(
-                        method_title,
-                        className="mt-4 mb-3"
-                    ),
-                    build_fuzzy_card(
-                        title=method_title,
-                        rows=rows,
-                        first_col_name="Cluster"
-                    )
-                ])
-            )
-        return html.Div(sections)
-    
-    def generate_w_summary(rows):
-        if not rows:
-            return ""
-        first_row = rows[0]
-        important_features = []
-        for key, value in first_row.items():
-            if key == "Latent Factor":
-                continue
-            if value in ["Medium", "High", "Very High"]:
-                important_features.append(key)
-        if not important_features:
-            return (
-                "The latent factors show generally low activation across the dataset features."
-            )
-        feature_text = ", ".join(important_features[:4])
-        return (
-            f"The latent factors are mainly associated with: {feature_text}."
-        )
-    
-    def generate_h_summary(h_tables):
-        if not h_tables:
-            return ""
-        methods = list(h_tables.keys())
-        method_labels = {
-            "argmax": "Argmax",
-            "kmeans": "K-Means",
-            "fcm_hard": (
-                "Fuzzy C-Means "
-                "(Hard assignment)"
-            ),
-            "fcm_soft_dot": (
-                "Fuzzy C-Means "
-                "(Soft membership - Dot product)"
-            ),
-            "fcm_soft_cosine": (
-                "Fuzzy C-Means "
-                "(Soft membership - Cosine similarity)"
-            )
-        }
-        readable_methods = [
-                method_labels.get(method, method)
-                for method in methods
-        ]
-        return (
-                "The selected clustering algorithms provide fuzzy descriptions "
-                "of the cluster structure. Results are shown separately for: "
-                + ", ".join(readable_methods)
-                + "."
-        )
-    
-    def generate_examples_summary(sample_rows):
-        if not sample_rows:
-            return ""
-        sample_names = []
-        for row in sample_rows[:3]:
-            if "Sample" in row:
-                sample_names.append(row["Sample"])
-        if not sample_names:
-            return ""
-        names_text = ", ".join(sample_names)
-        return (
-            f"The following samples show different latent factor activation patterns:{names_text}."
-        )
     
     @dash_app.callback(
         Output("fuzzy-summary", "children"),
@@ -4561,42 +4697,56 @@ None):
         ]
     
     @dash_app.callback(
-        Output("consensus-matrix-plot", "figure"),
-        Output("consensus-note", "children"),
-        Input("consensus-method-selector", "value"),
-        Input("consensus-init-selector", "value"),
-        Input("consensus-fcm-mode-selector", "value"),
-        Input("consensus-k-selector", "value"),
-        Input("k-experiment-status", "data"),
-        State("dataset-store", "data"),
+    Output("consensus-matrix-plot", "figure"),
+    Output("consensus-note", "children"),
+    Input("consensus-method-selector", "value"),
+    Input("consensus-init-selector", "value"),
+    Input("consensus-fcm-mode-selector", "value"),
+    Input("consensus-k-selector", "value"),
+    Input("k-experiment-status", "data"),
+    State("dataset-store", "data"),
     )
     def update_consensus_matrix(method, init_method, fcm_mode, selected_k, k_status, dataset_data):
+
         method_labels = {
             "argmax": "Argmax",
             "kmeans": "K-Means",
             "fcm": "Fuzzy C-Means"
         }
+
         fcm_mode_labels = {
             "hard": "Hard",
             "soft_dot": "Soft Dot",
             "soft_cosine": "Soft Cosine"
         }
+
         init_labels = {
             "random": "Random",
             "nndsvd": "NNDSVD",
             "custom1": "Custom 1",
             "custom2": "Custom 2"
         }
-        
+
         def empty_fig(message):
             fig_empty = go.Figure()
+
             fig_empty.update_layout(
                 title="Consensus Matrix",
                 template="plotly_white",
-                height=550,
+                autosize=False,
+                width=900,
+                height=750,
+                uirevision="consensus-fixed-size",
+                margin=dict(
+                    l=80,
+                    r=20,
+                    t=90,
+                    b=120
+                ),
                 xaxis={"visible": False},
                 yaxis={"visible": False}
             )
+
             fig_empty.add_annotation(
                 text=message,
                 xref="paper",
@@ -4609,8 +4759,9 @@ None):
                     "color": "#6c757d"
                 }
             )
+
             return fig_empty
-        
+
         if not k_status or "artifacts" not in k_status:
             return empty_fig(
                 "Run the k-selection experiment to generate consensus matrices."
@@ -4619,7 +4770,7 @@ None):
                 color="warning",
                 className="mt-3"
             )
-        
+
         if selected_k is None:
             return empty_fig(
                 "Please select a valid k value."
@@ -4628,8 +4779,9 @@ None):
                 color="warning",
                 className="mt-3"
             )
-        
+
         artifacts = k_status["artifacts"]
+
         if not init_method or init_method not in artifacts:
             return empty_fig(
                 "No consensus matrix is available for the selected initialization."
@@ -4638,9 +4790,10 @@ None):
                 color="warning",
                 className="mt-3"
             )
-        
+
         init_artifacts = artifacts[init_method]
         k_key = str(selected_k)
+
         if k_key not in init_artifacts:
             return empty_fig(
                 f"No consensus matrix is available for k={selected_k}."
@@ -4649,25 +4802,29 @@ None):
                 color="warning",
                 className="mt-3"
             )
-        
+
         consensus_block = init_artifacts[k_key].get("consensus", {})
+
         if method == "argmax":
             matrix = consensus_block.get("argmax")
             method_label = method_labels["argmax"]
             mode_label = None
+
         elif method == "kmeans":
             matrix = consensus_block.get("kmeans")
             method_label = method_labels["kmeans"]
             mode_label = None
+
         elif method == "fcm":
             matrix = consensus_block.get("fcm", {}).get(fcm_mode)
             method_label = method_labels["fcm"]
             mode_label = fcm_mode_labels.get(fcm_mode, fcm_mode)
+
         else:
             matrix = None
             method_label = method
             mode_label = None
-        
+
         if matrix is None:
             return empty_fig(
                 f"No consensus matrix is available for {method_label}."
@@ -4676,34 +4833,49 @@ None):
                 color="warning",
                 className="mt-3"
             )
-        
+
         matrix = np.asarray(matrix, dtype=float)
+
         _, sample_labels = get_dataset_labels(dataset_data)
+
         if not sample_labels or len(sample_labels) != matrix.shape[0]:
             sample_labels = [f"Sample {i + 1}" for i in range(matrix.shape[0])]
-        
+
         if method == "fcm":
             title = f"Consensus Matrix - {method_label} ({mode_label}), k={selected_k}"
         else:
             title = f"Consensus Matrix - {method_label}, k={selected_k}"
-        
+
+        n_samples = len(sample_labels)
+        tick_step = max(1, n_samples // 12)
+
+        tick_indices = list(range(0, n_samples, tick_step))
+
+        if (n_samples - 1) not in tick_indices:
+            tick_indices.append(n_samples - 1)
+
+        tick_values = [sample_labels[i] for i in tick_indices]
+        tick_text = [sample_labels[i] for i in tick_indices]
+
         fig = go.Figure(
             data=go.Heatmap(
                 z=matrix,
                 x=sample_labels,
                 y=sample_labels,
+                colorscale="RdBu_r",
                 zmin=0,
                 zmax=1,
-                colorscale="Viridis",
+                zmid=0.5,
                 colorbar=dict(
-                    title="Consensus",
+                    title="Consensus Strength",
                     thickness=14,
-                    len=0.70,
+                    len=0.75,
+                    x=1.03,
                     tickvals=[0, 0.5, 1],
                     ticktext=[
-                        "0 - unstable",
-                        "0.5",
-                        "1 - stable"
+                        "Low (0)",
+                        "Medium (0.5)",
+                        "High (1)"
                     ]
                 ),
                 hovertemplate=(
@@ -4713,6 +4885,7 @@ None):
                 )
             )
         )
+
         fig.update_layout(
             title={
                 "text": title,
@@ -4720,43 +4893,60 @@ None):
                 "xanchor": "left"
             },
             template="plotly_white",
-            height=650,
+            autosize=False,
+            width=900,
+            height=750,
+            uirevision="consensus-fixed-size",
             margin=dict(
                 l=80,
-                r=90,
+                r=20,
                 t=90,
-                b=90
+                b=120
             ),
             xaxis_title="Samples",
-            yaxis_title="Samples"
+            yaxis_title="Samples",
+            font=dict(
+                family="Poppins, Arial",
+                size=13,
+                color="#2c3e50"
+            )
         )
+
         fig.update_xaxes(
-            tickangle=45,
-            showgrid=False
+            tickmode="array",
+            tickvals=tick_values,
+            ticktext=tick_text,
+            tickangle=35,
+            showgrid=False,
+            tickfont=dict(size=10),
+            automargin=True
         )
+
         fig.update_yaxes(
+            tickmode="array",
+            tickvals=tick_values,
+            ticktext=tick_text,
             autorange="reversed",
-            showgrid=False
+            showgrid=False,
+            tickfont=dict(size=10),
+            automargin=True
         )
-        
+
         readable_init = init_labels.get(init_method, init_method)
+
         if method == "fcm":
             note_text = (
                 f"This consensus matrix represents pairwise sample co-clustering stability "
                 f"across repeated NMF runs using {method_label} ({mode_label}), "
-                f"initialization {readable_init}, and k={selected_k}. "
-                f"Values close to 1 indicate highly stable co-clustering relationships, "
-                f"whereas values close to 0 indicate unstable sample associations."
+                f"initialization {readable_init}, and k={selected_k}."
             )
         else:
             note_text = (
                 f"This consensus matrix represents pairwise sample co-clustering stability "
                 f"across repeated NMF runs using {method_label}, initialization {readable_init}, "
-                f"and k={selected_k}. Values close to 1 indicate highly stable "
-                f"co-clustering relationships, whereas values close to 0 indicate unstable "
-                f"sample associations."
+                f"and k={selected_k}."
             )
-        
+
         note = dbc.Card(
             dbc.CardBody([
                 html.H6(
@@ -4767,31 +4957,41 @@ None):
                         "color": "#2c3e50"
                     }
                 ),
+
                 html.P(
                     note_text,
                     className="mb-3",
                     style={
                         "fontSize": "14px",
-                        "lineHeight": "1.6",
-                        "color": "#2c3e50"
+                        "lineHeight": "1.6"
                     }
                 ),
+
                 dbc.Row([
                     dbc.Col(
                         dbc.Badge(
-                            "0 = unstable co-clustering",
-                            color="secondary",
-                            className="p-2 w-100"
-                        ),
-                        md=6
-                    ),
-                    dbc.Col(
-                        dbc.Badge(
-                            "1 = stable co-clustering",
+                            "Blue = low consensus",
                             color="primary",
                             className="p-2 w-100"
                         ),
-                        md=6
+                        md=4
+                    ),
+                    dbc.Col(
+                        dbc.Badge(
+                            "White = medium consensus",
+                            color="light",
+                            text_color="dark",
+                            className="p-2 w-100"
+                        ),
+                        md=4
+                    ),
+                    dbc.Col(
+                        dbc.Badge(
+                            "Red = high consensus",
+                            color="danger",
+                            className="p-2 w-100"
+                        ),
+                        md=4
                     ),
                 ], className="g-2")
             ]),
@@ -4802,40 +5002,9 @@ None):
                 "borderRadius": "10px"
             }
         )
+
         return fig, note
-    
-    @dash_app.callback(
-        Output("download-k-results", "data"),
-        Input("download-k-metrics-btn", "n_clicks"),
-        State("k-experiment-status", "data"),
-        prevent_initial_call=True
-    )
-    def download_k_metrics(n_clicks, k_status):
-        if not n_clicks:
-            raise PreventUpdate
-        if not k_status:
-            raise PreventUpdate
-        metrics = k_status.get("displayed_metrics") or k_status.get("metrics")
-        if not metrics:
-            raise PreventUpdate
-        df = pd.DataFrame(metrics)
-        rename_map = {
-            "init": "Initialization",
-            "k": "k",
-            "reconstruction_error_mean": "Reconstruction Error Mean",
-            "reconstruction_error_std": "Reconstruction Error Std",
-            "silhouette_kmeans_mean": "Silhouette Score Mean",
-            "silhouette_kmeans_std": "Silhouette Score Std",
-            "cophenetic_mean": "Cophenetic Correlation Mean",
-            "cophenetic_std": "Cophenetic Correlation Std"
-        }
-        df = df.rename(columns=rename_map)
-        return send_excel_file(
-            df,
-            "k_selection_metrics.xlsx",
-            sheet_name="K Selection Metrics",
-            index=False
-        )
+        
     
     @dash_app.callback(
         Output("download-k-config", "data"),

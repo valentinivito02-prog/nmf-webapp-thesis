@@ -141,6 +141,7 @@ def layout() -> html.Div:
                         html.Div(id="k-run-warning", className="mt-2"),
 
                         html.H5("Results", className="mb-3 mt-4"),
+
                         dbc.Card(
                             dbc.CardBody([
                                 html.Div(
@@ -187,15 +188,16 @@ def layout() -> html.Div:
 
                                                         dcc.Graph(
                                                             id="k-selection-graph",
+                                                            responsive=False,
                                                             figure={},
                                                             config={
                                                                 "displaylogo": False,
                                                                 "toImageButtonOptions": {
                                                                     "format": "png",
                                                                     "filename": "k_selection_plot",
-                                                                    "height": 900,
-                                                                    "width": 1400,
-                                                                    "scale": 2
+                                                                    "height": 1200,
+                                                                    "width": 1600,
+                                                                    "scale": 3
                                                                 },
                                                                 "modeBarButtonsToRemove": [
                                                                     "lasso2d",
@@ -204,7 +206,8 @@ def layout() -> html.Div:
                                                                 ]
                                                             },
                                                             style={
-                                                                "borderRadius": "12px"
+                                                                "borderRadius": "12px",
+                                                                "height": "750px"
                                                             }
                                                         ),
 
@@ -230,15 +233,34 @@ def layout() -> html.Div:
                                                     "backgroundColor": "white"
                                                 },
                                                 children=[
-                                                    html.Div(
-                                                        id="k-selection-metrics",
-                                                        children=dbc.Alert(
-                                                            "Numerical metrics will be displayed here.",
-                                                            color="light",
+                                                    html.Div([
+                                                        html.Div(
+                                                            id="k-selection-metrics",
+                                                            children=dbc.Alert(
+                                                                "Numerical metrics will be displayed here.",
+                                                                color="light",
+                                                                className="mt-3"
+                                                            ),
                                                             className="mt-3"
                                                         ),
-                                                        className="mt-3"
-                                                    )
+
+                                                        html.Div(
+                                                            dbc.Button(
+                                                                [
+                                                                    html.I(className="fas fa-download me-2"),
+                                                                    "Download Metrics"
+                                                                ],
+                                                                id="download-k-metrics-btn",
+                                                                color="primary",
+                                                                style={
+                                                                    "borderRadius": "10px",
+                                                                    "fontWeight": "600",
+                                                                    "padding": "10px 18px"
+                                                                }
+                                                            ),
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+                                                    ])
                                                 ]
                                             ),
 
@@ -323,15 +345,16 @@ def layout() -> html.Div:
 
                                                         dcc.Graph(
                                                             id="consensus-matrix-plot",
+                                                            responsive=False,
                                                             figure={},
                                                             config={
                                                                 "displaylogo": False,
                                                                 "toImageButtonOptions": {
                                                                     "format": "png",
-                                                                    "filename": "consensus_matrix",
-                                                                    "height": 1200,
-                                                                    "width": 1200,
-                                                                    "scale": 2
+                                                                    "filename": "consensus_matrix_heatmap",
+                                                                    "height": 1600,
+                                                                    "width": 1600,
+                                                                    "scale": 3
                                                                 },
                                                                 "modeBarButtonsToRemove": [
                                                                     "lasso2d",
@@ -340,26 +363,15 @@ def layout() -> html.Div:
                                                                 ]
                                                             },
                                                             style={
-                                                                "borderRadius": "12px"
+                                                                "borderRadius": "12px",
+                                                                "height": "750px",
+                                                                "width": "100%"
                                                             }
                                                         ),
 
                                                         html.Small(
                                                             "Use the camera icon in the graph toolbar to download the consensus matrix as PNG.",
                                                             className="text-muted"
-                                                        ),
-
-                                                        html.Div(
-                                                            dbc.Button(
-                                                                [
-                                                                    html.I(className="fas fa-download me-2"),
-                                                                    "Download Consensus Matrix"
-                                                                ],
-                                                                id="download-consensus-btn",
-                                                                color="primary",
-                                                                className="mt-3"
-                                                            ),
-                                                            className="d-flex justify-content-end"
                                                         ),
 
                                                         html.Div(
@@ -388,10 +400,29 @@ def layout() -> html.Div:
                                                     "backgroundColor": "white"
                                                 },
                                                 children=[
-                                                    html.Div(
-                                                        id="k-selection-summary",
-                                                        className="mt-3"
-                                                    )
+                                                    html.Div([
+                                                        html.Div(
+                                                            id="k-selection-summary",
+                                                            className="mt-3"
+                                                        ),
+
+                                                        html.Div(
+                                                            dbc.Button(
+                                                                [
+                                                                    html.I(className="fas fa-download me-2"),
+                                                                    "Download Configuration"
+                                                                ],
+                                                                id="download-k-config-btn",
+                                                                color="primary",
+                                                                style={
+                                                                    "borderRadius": "10px",
+                                                                    "fontWeight": "600",
+                                                                    "padding": "10px 18px"
+                                                                }
+                                                            ),
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+                                                    ])
                                                 ]
                                             ),
                                         ]
@@ -401,32 +432,13 @@ def layout() -> html.Div:
                                         "borderRadius": "8px",
                                         "padding": "5px"
                                     }
-                                ),
-
-                                html.Div([
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download Metrics"],
-                                        id="download-k-metrics-btn",
-                                        color="success",
-                                        className="me-2"
-                                    ),
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download Configuration"],
-                                        id="download-k-config-btn",
-                                        color="secondary",
-                                        className="me-2"
-                                    ),
-                                    dbc.Button(
-                                        [html.I(className="fas fa-download me-2"), "Download Graph"],
-                                        id="download-k-graph-btn",
-                                        color="primary"
-                                    ),
-                                ], className="d-flex justify-content-end mt-3")
+                                )
                             ]),
                             className="mb-4"
                         ),
 
                         html.H5("Please Select the Best k", className="mb-3"),
+
                         dbc.Row([
                             dbc.Col([
                                 dcc.Input(
@@ -475,7 +487,7 @@ def layout() -> html.Div:
                         className="card-footer-gradient"
                     )
                 ], className="main-card"),
-                width=10
+                width=11
             ),
             justify="center",
             className="py-4"
