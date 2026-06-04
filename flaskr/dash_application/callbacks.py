@@ -5049,6 +5049,35 @@ None):
             lambda buffer: buffer.write(image_bytes),
             "k_selection_graph.png"
         )
+
+
+    @dash_app.callback(
+    Output("download-k-metrics", "data"),
+    Input("download-k-metrics-btn", "n_clicks"),
+    State("k-experiment-status", "data"),
+    prevent_initial_call=True
+    )
+    def download_k_metrics(n_clicks, k_status):
+
+        if not n_clicks:
+            raise PreventUpdate
+
+        if not k_status or "displayed_metrics" not in k_status:
+            raise PreventUpdate
+
+        df = pd.DataFrame(k_status.get("displayed_metrics", []))
+
+        if df.empty:
+            raise PreventUpdate
+
+        df.columns = [str(col).replace("_", " ").title() for col in df.columns]
+
+        return send_excel_file(
+            df,
+            filename="nmf_k_selection_metrics.xlsx",
+            sheet_name="K Selection Metrics",
+            index=False
+        )
     
     @dash_app.callback(
         Output("download-consensus-matrix", "data"),

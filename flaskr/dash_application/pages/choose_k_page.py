@@ -12,6 +12,7 @@ def layout() -> html.Div:
         dcc.Download(id="download-k-results"),
         dcc.Download(id="download-k-config"),
         dcc.Download(id="download-k-graph"),
+        dcc.Download(id="download-k-metrics"),
         dcc.Download(id="download-consensus-matrix"),
 
         dbc.Row(
