@@ -11,6 +11,7 @@ def layout() -> html.Div:
         dcc.Download(id="download-w-matrix"),
         dcc.Download(id="download-h-matrix"),
         dcc.Download(id="download-clusters"),
+        dcc.Download(id="download-centroids-representatives"),
 
         dbc.Row(
             dbc.Col(
@@ -272,6 +273,52 @@ def layout() -> html.Div:
                                                                 "Download Clusters"
                                                             ],
                                                             id="download-clusters-btn",
+                                                            color="primary",
+                                                            style={
+                                                                "borderRadius": "10px",
+                                                                "fontWeight": "600",
+                                                                "padding": "10px 18px"
+                                                            }
+                                                        ),
+                                                        className="d-flex justify-content-end mt-3"
+                                                    )
+
+                                                ])
+                                            ]
+                                        ),
+
+                                        dcc.Tab(
+                                            label="Centroids & Representatives",
+                                            value="tab-centroids",
+                                            style={
+                                                "padding": "10px",
+                                                "fontWeight": "500"
+                                            },
+                                            selected_style={
+                                                "padding": "10px",
+                                                "fontWeight": "600",
+                                                "borderTop": "3px solid #52b2cf",
+                                                "backgroundColor": "white"
+                                            },
+                                            children=[
+                                                html.Div([
+
+                                                    html.Div(
+                                                        id="centroids-representatives-output",
+                                                        children=dbc.Alert(
+                                                            "Centroids and representative vectors will be displayed here after execution.",
+                                                            color="light"
+                                                        ),
+                                                        className="mt-3"
+                                                    ),
+
+                                                    html.Div(
+                                                        dbc.Button(
+                                                            [
+                                                                html.I(className="fas fa-download me-2"),
+                                                                "Download Centroids & Representatives"
+                                                            ],
+                                                            id="download-centroids-representatives-btn",
                                                             color="primary",
                                                             style={
                                                                 "borderRadius": "10px",

@@ -16,6 +16,7 @@ def layout() -> html.Div:
         dbc.Row(
             dbc.Col(
                 dbc.Card([
+
                     dbc.CardHeader(
                         html.H4(
                             "Step 4: Fuzzy Explanations",
@@ -27,8 +28,7 @@ def layout() -> html.Div:
                     dbc.CardBody([
 
                         html.P(
-                            "Configure the fuzzy explanation settings to interpret "
-                            "the NMF results.",
+                            "Configure the fuzzy explanation settings to interpret the NMF results.",
                             className="text-muted mb-4"
                         ),
 
@@ -39,7 +39,6 @@ def layout() -> html.Div:
                                     "Number of Fuzzy Sets",
                                     className="mb-3"
                                 ),
-
                                 dcc.Input(
                                     id="num-fuzzy-sets",
                                     type="number",
@@ -54,7 +53,6 @@ def layout() -> html.Div:
                                     "Creation Method",
                                     className="mb-3"
                                 ),
-
                                 dcc.RadioItems(
                                     id="fuzzy-method",
                                     options=[
@@ -80,7 +78,6 @@ def layout() -> html.Div:
                                     "Membership Function Shape",
                                     className="mb-3"
                                 ),
-
                                 dcc.Dropdown(
                                     id="fuzzy-shape",
                                     options=[
@@ -165,7 +162,7 @@ def layout() -> html.Div:
                                         children=[
 
                                             dcc.Tab(
-                                                label="W Explanations",
+                                                label="W Fuzzy Representations",
                                                 value="tab-fuzzy-w",
 
                                                 style={
@@ -185,13 +182,10 @@ def layout() -> html.Div:
 
                                                         html.Div(
                                                             id="fuzzy-w-output",
-
                                                             children=dbc.Alert(
-                                                                "W explanations will "
-                                                                "be displayed here.",
+                                                                "W fuzzy representations will be displayed here.",
                                                                 color="light"
                                                             ),
-
                                                             className="mt-3"
                                                         ),
 
@@ -201,7 +195,7 @@ def layout() -> html.Div:
                                                                     html.I(
                                                                         className="fas fa-download me-2"
                                                                     ),
-                                                                    "Download W Explanations"
+                                                                    "Download W Fuzzy Representations"
                                                                 ],
                                                                 id="download-w-explanations-btn",
                                                                 color="primary",
@@ -219,7 +213,7 @@ def layout() -> html.Div:
                                             ),
 
                                             dcc.Tab(
-                                                label="H Explanations",
+                                                label="Cluster Explanations",
                                                 value="tab-fuzzy-h",
 
                                                 style={
@@ -239,13 +233,10 @@ def layout() -> html.Div:
 
                                                         html.Div(
                                                             id="fuzzy-h-output",
-
                                                             children=dbc.Alert(
-                                                                "H explanations will "
-                                                                "be displayed here.",
+                                                                "Cluster explanations will be displayed here.",
                                                                 color="light"
                                                             ),
-
                                                             className="mt-3"
                                                         ),
 
@@ -255,7 +246,7 @@ def layout() -> html.Div:
                                                                     html.I(
                                                                         className="fas fa-download me-2"
                                                                     ),
-                                                                    "Download H Explanations"
+                                                                    "Download Cluster Explanations"
                                                                 ],
                                                                 id="download-h-explanations-btn",
                                                                 color="primary",
@@ -291,15 +282,36 @@ def layout() -> html.Div:
                                                 children=[
                                                     html.Div([
 
-                                                        html.Div(
-                                                            id="fuzzy-examples",
-
-                                                            children=dbc.Alert(
-                                                                "Example explanations "
-                                                                "will be displayed here.",
-                                                                color="light"
+                                                        html.Div([
+                                                            html.H6(
+                                                                "Select Example",
+                                                                className="mb-2 mt-3",
+                                                                style={
+                                                                    "fontWeight": "700",
+                                                                    "color": "#2c3e50"
+                                                                }
                                                             ),
 
+                                                            dcc.Dropdown(
+                                                                id="sample-explanation-selector",
+                                                                placeholder="Select a sample to display its explanation",
+                                                                clearable=False
+                                                            ),
+
+                                                            html.Div(
+                                                                id="selected-sample-explanation",
+                                                                className="mt-3"
+                                                            )
+                                                        ]),
+
+                                                        html.Hr(className="my-4"),
+
+                                                        html.Div(
+                                                            id="fuzzy-examples",
+                                                            children=dbc.Alert(
+                                                                "Example explanations will be displayed here.",
+                                                                color="light"
+                                                            ),
                                                             className="mt-3"
                                                         ),
 
@@ -327,6 +339,34 @@ def layout() -> html.Div:
                                             ),
 
                                             dcc.Tab(
+                                                label="Methods Overview",
+                                                value="tab-methods-overview",
+
+                                                style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "500"
+                                                },
+
+                                                selected_style={
+                                                    "padding": "10px",
+                                                    "fontWeight": "600",
+                                                    "borderTop": "3px solid #52b2cf",
+                                                    "backgroundColor": "white"
+                                                },
+
+                                                children=[
+                                                    html.Div(
+                                                        id="methods-overview-output",
+                                                        children=dbc.Alert(
+                                                            "Methods overview will be displayed here after generating fuzzy explanations.",
+                                                            color="light"
+                                                        ),
+                                                        className="mt-3"
+                                                    )
+                                                ]
+                                            ),
+
+                                            dcc.Tab(
                                                 label="Configuration Summary",
                                                 value="tab-fuzzy-summary",
 
@@ -345,14 +385,10 @@ def layout() -> html.Div:
                                                 children=[
                                                     html.Div(
                                                         id="fuzzy-summary",
-
                                                         children=dbc.Alert(
-                                                            "Fuzzy configuration "
-                                                            "summary will be "
-                                                            "displayed here.",
+                                                            "Fuzzy configuration summary will be displayed here.",
                                                             color="light"
                                                         ),
-
                                                         className="mt-3"
                                                     )
                                                 ]
@@ -378,21 +414,15 @@ def layout() -> html.Div:
                                             "Explain with Fuxplainer: "
                                         ),
 
-                                        "Fuzzy results are exposed via API "
-                                        "to the endpoint ",
+                                        "Fuzzy results are exposed via API to the endpoint ",
 
                                         html.Code(
                                             "GET http://localhost:5000/api/explanations",
                                             style={"fontSize": "0.85em"}
                                         ),
 
-                                        ". Fuxplainer can retrieve them "
-                                        "automatically by pressing the "
-                                        "button below or from the "
-                                        "Fuxplainer data upload page "
-                                        "(Step 1)."
+                                        ". Fuxplainer can retrieve them automatically by pressing the button below or from the Fuxplainer data upload page (Step 1)."
                                     ],
-
                                     color="info",
                                     className="mb-3"
                                 ),
@@ -447,7 +477,6 @@ def layout() -> html.Div:
                                     ),
                                     "Back"
                                 ],
-
                                 href="/run",
                                 color="light",
                                 className="nav-btn me-2"

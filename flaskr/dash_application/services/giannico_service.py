@@ -25,6 +25,7 @@ def make_readable_label(label):
 
     return label.title()
 
+
 def dataframe_from_store(dataset_data):
     if not dataset_data or "data" not in dataset_data:
         raise ValueError("Dataset not available.")
@@ -43,6 +44,12 @@ def dataframe_from_store(dataset_data):
 
 def make_json_safe(value):
     if isinstance(value, np.ndarray):
+        return value.tolist()
+
+    if isinstance(value, pd.DataFrame):
+        return value.to_dict("records")
+
+    if isinstance(value, pd.Series):
         return value.tolist()
 
     if isinstance(value, dict):
@@ -142,6 +149,7 @@ def run_final_nmf(dataset_data, selected_k, final_init=None):
         "H": safe_artifacts.get("H"),
         "W_norm": safe_artifacts.get("W_norm"),
         "H_norm": safe_artifacts.get("H_norm"),
+        "Z": safe_artifacts.get("Z"),
 
         "clusters": {
             "argmax": safe_artifacts.get("labels_argmax", []),
@@ -149,10 +157,19 @@ def run_final_nmf(dataset_data, selected_k, final_init=None):
             "fcm": safe_artifacts.get("labels_fcm_hard", []),
         },
 
+        "centroids": {
+            "kmeans": safe_artifacts.get("centroids_kmeans", []),
+            "fcm": safe_artifacts.get("centroids_fcm", []),
+        },
+
+        "representatives": safe_artifacts.get("representatives", {}),
+
+        "membership_fcm": safe_artifacts.get("membership_fcm", []),
         "metrics": safe_artifacts.get("metrics", {}),
         "cluster_sizes": safe_artifacts.get("cluster_sizes", {}),
         "config": safe_artifacts.get("config", {}),
     }
+
 
 def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, targets=None):
     if not nmf_results or not nmf_results.get("nmf_completed"):
@@ -163,11 +180,6 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
 
     artifacts = nmf_results.get("artifacts", {})
     config = nmf_results.get("config", {})
-    selected_k = int(nmf_results.get("selected_k", config.get("k", 2)))
-
-    # =========================
-    # DATASET LABELS
-    # =========================
 
     feature_names = None
     sample_names_all = None
@@ -189,6 +201,7 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
             sample_names_all = [f"Sample {i + 1}" for i in range(len(df))]
 
     universe = np.arange(0.0, 1.01, 0.01)
+
     fuzzy_sets = generate_equidistant_fuzzy_sets(
         universe=universe,
         n_sets=int(n_fuzzy_sets)
@@ -206,10 +219,6 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
         "sample_fuzzy_table": [],
     }
 
-    # =========================
-    # MATRIX W
-    # =========================
-
     if "W" in targets:
         W_norm = nmf_results.get("W_norm") or artifacts.get("W_norm")
 
@@ -222,7 +231,6 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
             feature_names = [f"Feature {i + 1}" for i in range(W_norm.shape[0])]
 
         lf_names = [f"LF{i + 1}" for i in range(W_norm.shape[1])]
-
         w_by_lf = W_norm.T
 
         df_fuzzy_w = fuzzify_matrix_rows(
@@ -241,12 +249,11 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
 
         results["w_descriptions"] = describe_latent_factors(df_fuzzy_w)
 
-    # =========================
-    # MATRIX H
-    # =========================
-
     if "H" in targets:
-        representatives = artifacts.get("representatives", {})
+        representatives = (
+            nmf_results.get("representatives")
+            or artifacts.get("representatives", {})
+        )
 
         if not representatives:
             raise ValueError("Representative vectors not found in NMF results.")
@@ -272,7 +279,10 @@ def run_fuzzy_from_nmf_results(nmf_results, dataset_data=None, n_fuzzy_sets=3, t
             )
 
             results["h_descriptions"].extend(
-                [f"[{method_name}] {desc}" for desc in describe_cluster_representatives(df_fuzzy_rep)]
+                [
+                    f"[{method_name}] {desc}"
+                    for desc in describe_cluster_representatives(df_fuzzy_rep)
+                ]
             )
 
         H_norm = nmf_results.get("H_norm") or artifacts.get("H_norm")

@@ -860,6 +860,27 @@ def register_callbacks(dash_app):
         clustering_readable = [clustering_labels.get(c, c) for c in clustering]
         init_readable = [init_labels.get(i, i) for i in init_methods]
         nmf_readable = nmf_labels.get(nmf_alg, nmf_alg)
+
+        def prepare_metrics_display_dataframe(df, nmf_algorithm_label):
+            display_df = df.copy()
+
+            if "nmf_algorithm" not in display_df.columns:
+                display_df.insert(
+                1,
+                "nmf_algorithm",
+                nmf_algorithm_label
+            )
+
+            for col in display_df.columns:
+                if col == "k":
+                    continue
+
+                if pd.api.types.is_numeric_dtype(display_df[col]):
+                    display_df[col] = display_df[col].apply(
+                        lambda x: f"{x:.3f}" if pd.notnull(x) else ""
+                    )
+
+            return display_df
         
         try:
             experiment_output = run_k_experiments(
@@ -873,6 +894,11 @@ def register_callbacks(dash_app):
                 results_df=results_df,
                 methods=methods,
                 clustering=clustering
+            )
+
+            display_results_df = prepare_metrics_display_dataframe(
+            display_results_df,
+            nmf_readable
             )
         except Exception as e:
             alert = error_card(
@@ -977,7 +1003,11 @@ def register_callbacks(dash_app):
                     data=display_results_df.to_dict("records"),
                     columns=[
                         {
-                            "name": str(col).replace("_", " ").title(),
+                            "name": (
+                                "NMF Algorithm"
+                                if col == "nmf_algorithm"
+                                else str(col).replace("_", " ").title()
+                            ),
                             "id": col
                         }
                         for col in display_results_df.columns
@@ -1906,6 +1936,150 @@ def register_callbacks(dash_app):
                 ]
             )
         return summary, cluster_output, nmf_results_data, ""
+
+    @dash_app.callback(
+    Output("centroids-representatives-output", "children"),
+    Input("nmf-results-store", "data"),
+    prevent_initial_call=False
+    )
+    def show_centroids_and_representatives(nmf_results):
+
+        if not nmf_results or not nmf_results.get("nmf_completed"):
+            return dbc.Alert(
+                "Run the final NMF to display centroids and representative vectors.",
+                color="light"
+            )
+
+        centroids = nmf_results.get("centroids", {})
+        representatives = nmf_results.get("representatives", {})
+
+        if not centroids and not representatives:
+            return dbc.Alert(
+                "No centroids or representative vectors found in the backend output.",
+                color="warning"
+            )
+
+        def make_table(title, matrix, row_prefix="Cluster"):
+            if matrix is None or len(matrix) == 0:
+                return None
+
+            df = pd.DataFrame(matrix)
+            df.index = [f"{row_prefix} {i + 1}" for i in range(len(df))]
+            df.columns = [f"LF{i + 1}" for i in range(df.shape[1])]
+            df.insert(0, "Cluster", df.index)
+
+            for col in df.columns:
+                if col != "Cluster":
+                    df[col] = df[col].apply(lambda x: f"{float(x):.3f}")
+
+            return dbc.Card(
+                dbc.CardBody([
+                    html.H5(
+                        title,
+                        className="mb-2",
+                        style={
+                            "fontWeight": "700",
+                            "color": "#2c3e50"
+                        }
+                    ),
+                    html.P(
+                        "Rows represent clusters and columns represent latent factors.",
+                        className="text-muted mb-3",
+                        style={"fontSize": "14px"}
+                    ),
+                    dash_table.DataTable(
+                        data=df.to_dict("records"),
+                        columns=[
+                            {"name": col, "id": col}
+                            for col in df.columns
+                        ],
+                        page_size=10,
+                        style_table={
+                            "overflowX": "auto",
+                            "borderRadius": "12px",
+                            "boxShadow": "0 2px 8px rgba(0,0,0,0.08)",
+                            "border": "1px solid #e9ecef"
+                        },
+                        style_cell={
+                            "textAlign": "center",
+                            "padding": "8px",
+                            "fontFamily": "Poppins, Arial, sans-serif",
+                            "fontSize": "13px"
+                        },
+                        style_header={
+                            "backgroundColor": "#52b2cf",
+                            "color": "white",
+                            "fontWeight": "700"
+                        },
+                        style_data_conditional=[
+                            {
+                                "if": {"row_index": "odd"},
+                                "backgroundColor": "#f8fbfd"
+                            }
+                        ]
+                    )
+                ]),
+                className="mb-4 shadow-sm border-0",
+                style={
+                    "backgroundColor": "#f8fbfd",
+                    "borderLeft": "5px solid #52b2cf",
+                    "borderRadius": "10px"
+                }
+            )
+
+        sections = []
+
+        sections.append(
+            html.H4(
+                "Centroids & Representative Vectors",
+                className="mb-3",
+                style={
+                    "fontWeight": "700",
+                    "color": "#2c3e50"
+                }
+            )
+        )
+
+        sections.append(
+            dbc.Alert(
+                "K-Means and FCM centroids are computed in the latent space H. "
+                "Representative vectors are computed as the mean latent-factor profile of samples assigned to each cluster.",
+                color="info",
+                className="mb-4"
+            )
+        )
+
+        if representatives:
+            method_labels = {
+                "argmax": "Argmax Mean Representative Vectors",
+                "kmeans": "K-Means Mean Representative Vectors",
+                "fcm_hard": "FCM Hard Mean Representative Vectors"
+            }
+
+            for method, matrix in representatives.items():
+                table = make_table(
+                    method_labels.get(method, method),
+                    matrix
+                )
+                if table:
+                    sections.append(table)
+
+        if centroids:
+            centroid_labels = {
+                "kmeans": "K-Means Centroids",
+                "fcm": "Fuzzy C-Means Centroids"
+            }
+
+            for method, matrix in centroids.items():
+                table = make_table(
+                    centroid_labels.get(method, method),
+                    matrix
+                )
+                if table:
+                    sections.append(table)
+
+        return html.Div(sections)
+
     
     @dash_app.callback(
         Output("url", "pathname", allow_duplicate=True),
@@ -2316,6 +2490,7 @@ def register_callbacks(dash_app):
         Output("fuzzy-h-output", "children"),
         Output("fuzzy-examples", "children"),
         Output("fuzzy-settings", "data"),
+        Output("fuzzy-results", "data"),
         Output("fuzzy-run-warning", "children"),
         Input("run-fuzzy", "n_clicks"),
         State("num-fuzzy-sets", "value"),
@@ -2336,7 +2511,15 @@ def register_callbacks(dash_app):
         dataset_data
     ):
         if not n_clicks:
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update
+            )
         
         def warning_card(title, message):
             return dbc.Card(
@@ -2554,7 +2737,7 @@ def register_callbacks(dash_app):
         def build_w_cards(w_rows):
             if not w_rows:
                 return empty_section_card(
-                    "No W explanations available",
+                    "No W fuzzy representation available",
                     "Select Matrix W and generate fuzzy explanations to display this section."
                 )
             factors = {}
@@ -2565,7 +2748,7 @@ def register_callbacks(dash_app):
                 factors.setdefault(factor, []).append(row)
             children = [
                 html.H5(
-                    "Latent Factor Explanations",
+                    "W Fuzzy Representation",
                     className="mb-2",
                     style={
                         "fontWeight": "700",
@@ -2619,18 +2802,23 @@ def register_callbacks(dash_app):
                 )
             return html.Div(children)
         
-        def build_h_cards(h_tables):
+        def build_h_cards(h_tables, h_descriptions=None):
+            if h_descriptions is None:
+                h_descriptions = []
+
             if not h_tables:
                 return empty_section_card(
-                    "No H explanations available",
+                    "No cluster explanations available",
                     "Select Matrix H and generate fuzzy explanations to display this section."
                 )
+
             method_labels = {
                 "argmax": "Argmax",
                 "kmeans": "K-Means",
                 "fcm_hard": "Fuzzy C-Means",
                 "fcm": "Fuzzy C-Means"
             }
+
             children = [
                 html.H5(
                     "Cluster Explanations",
@@ -2640,11 +2828,13 @@ def register_callbacks(dash_app):
                         "color": "#2c3e50"
                     }
                 ),
+
                 html.P(
                     "Fuzzy linguistic labels summarize the latent-factor profile associated with each cluster.",
                     className="text-muted mb-3",
                     style={"fontSize": "14px"}
                 ),
+
                 interpretation_card(
                     "Matrix H Interpretation",
                     (
@@ -2653,8 +2843,47 @@ def register_callbacks(dash_app):
                     )
                 )
             ]
+
+            if h_descriptions:
+                children.append(
+                    dbc.Card(
+                        dbc.CardBody([
+                            html.H6(
+                                "Textual Cluster Explanations",
+                                className="mb-3",
+                                style={
+                                    "fontWeight": "700",
+                                    "color": "#2c3e50"
+                                }
+                            ),
+
+                            html.Ul([
+                                html.Li(
+                                    desc,
+                                    style={
+                                        "fontSize": "13px",
+                                        "lineHeight": "1.6",
+                                        "marginBottom": "6px"
+                                    }
+                                )
+                                for desc in h_descriptions
+                            ])
+                        ]),
+                        className="mb-4 shadow-sm border-0",
+                        style={
+                            "backgroundColor": "#f8fbfd",
+                            "borderLeft": "5px solid #52b2cf",
+                            "borderRadius": "10px"
+                        }
+                    )
+                )
+
             for method_name, rows in h_tables.items():
-                method_title = method_labels.get(method_name, make_readable_label(method_name))
+                method_title = method_labels.get(
+                    method_name,
+                    make_readable_label(method_name)
+                )
+
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2678,6 +2907,7 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
+
             return html.Div(children)
         
         def build_sample_cards(sample_rows):
@@ -2880,24 +3110,29 @@ def register_callbacks(dash_app):
         w_rows = fuzzy_results.get("w_fuzzy_table", [])
         h_tables = fuzzy_results.get("h_fuzzy_tables", {})
         sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
-        
+        h_descriptions = fuzzy_results.get("h_descriptions", [])
+
         if "W" in fuzzy_target:
             w_output = build_w_cards(w_rows)
         else:
             w_output = empty_section_card(
-                "No W explanations available",
+                "No W fuzzy representation available",
                 "Matrix W was not selected as a fuzzy explanation target."
             )
-        
+
         if "H" in fuzzy_target:
-            h_output = build_h_cards(h_tables)
+            h_output = build_h_cards(
+                h_tables,
+                h_descriptions
+            )
         else:
             h_output = empty_section_card(
-                "No H explanations available",
+                "No cluster explanations available",
                 "Matrix H was not selected as a fuzzy explanation target."
             )
-        
+
         examples_output = build_sample_cards(sample_rows)
+
         settings_data = {
             "fuzzy_completed": True,
             "num_fuzzy_sets": num_sets,
@@ -2906,12 +3141,243 @@ def register_callbacks(dash_app):
             "fuzzy_target": fuzzy_target,
             "results": fuzzy_results
         }
-        # ──Salva le explanations nel _STORE server-side ──────────────────
-        # In questo modo l'endpoint GET /api/explanations può esporle a Fuxplainer
-        # anche senza accesso allo dcc.Store client-side di Dash.
+
         save_explanations(fuzzy_results)
-        # ─────────────────────────────────────────────────────────────────
-        return summary, w_output, h_output, examples_output, settings_data, ""
+
+        return (
+            summary,
+            w_output,
+            h_output,
+            examples_output,
+            settings_data,
+            fuzzy_results,
+            ""
+        )
+
+
+    @dash_app.callback(
+        Output("sample-explanation-selector", "options"),
+        Output("sample-explanation-selector", "value"),
+        Input("fuzzy-results", "data"),
+        prevent_initial_call=False
+    )
+    def update_sample_explanation_selector(fuzzy_results):
+
+        if not fuzzy_results:
+            return [], None
+
+        sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
+
+        if not sample_rows:
+            return [], None
+
+        sample_names = [
+            row.get("Sample")
+            for row in sample_rows
+            if row.get("Sample")
+        ]
+
+        options = [
+            {
+                "label": sample_name,
+                "value": sample_name
+            }
+            for sample_name in sample_names
+        ]
+
+        default_value = sample_names[0] if sample_names else None
+
+        return options, default_value
+    
+
+    @dash_app.callback(
+    Output("selected-sample-explanation", "children"),
+    Input("sample-explanation-selector", "value"),
+    State("fuzzy-results", "data"),
+    prevent_initial_call=False
+    )
+    def show_selected_sample_explanation(selected_sample, fuzzy_results):
+
+        if not fuzzy_results or not selected_sample:
+            return dbc.Alert(
+                "Generate fuzzy explanations and select a sample.",
+                color="light"
+            )
+
+        sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
+
+        selected_row = None
+
+        for row in sample_rows:
+            if row.get("Sample") == selected_sample:
+                selected_row = row
+                break
+
+        if selected_row is None:
+            return dbc.Alert(
+                "Selected sample not found.",
+                color="warning"
+            )
+
+        rows = []
+
+        for key, value in selected_row.items():
+            if key == "Sample":
+                continue
+
+            rows.append(
+                html.Tr([
+                    html.Td(
+                        html.Strong(str(key)),
+                        style={
+                            "width": "40%",
+                            "verticalAlign": "middle"
+                        }
+                    ),
+                    html.Td(
+                        str(value),
+                        style={
+                            "verticalAlign": "middle"
+                        }
+                    )
+                ])
+            )
+
+        return dbc.Card(
+            dbc.CardBody([
+                html.H6(
+                    f"Explanation for {selected_sample}",
+                    className="mb-3",
+                    style={
+                        "fontWeight": "700",
+                        "color": "#2c3e50"
+                    }
+                ),
+
+                dbc.Table(
+                    [
+                        html.Thead(
+                            html.Tr([
+                                html.Th("Latent Factor"),
+                                html.Th("Fuzzy Label")
+                            ])
+                        ),
+                        html.Tbody(rows)
+                    ],
+                    bordered=True,
+                    hover=True,
+                    responsive=True,
+                    striped=True,
+                    size="sm"
+                )
+            ]),
+            className="shadow-sm border-0",
+            style={
+                "backgroundColor": "#f8fbfd",
+                "borderLeft": "5px solid #52b2cf",
+                "borderRadius": "10px"
+            }
+        )
+
+
+    @dash_app.callback(
+        Output("methods-overview-output", "children"),
+        Input("fuzzy-settings", "data"),
+        State("nmf-results-store", "data"),
+        prevent_initial_call=False
+    )
+    def show_methods_overview(fuzzy_settings, nmf_results):
+
+        if not fuzzy_settings:
+            return dbc.Alert(
+                "Generate fuzzy explanations to display the methods overview.",
+                color="light"
+            )
+
+        config = nmf_results.get("config", {}) if nmf_results else {}
+
+        fuzzy_method = fuzzy_settings.get("fuzzy_method", "equidistant")
+        fuzzy_shape = fuzzy_settings.get("fuzzy_shape", "gaussian")
+        fuzzy_target = fuzzy_settings.get("fuzzy_target", [])
+        num_sets = fuzzy_settings.get("num_fuzzy_sets", "-")
+
+        return dbc.Card(
+            dbc.CardBody([
+
+                html.H5(
+                    "Methods Overview",
+                    className="mb-3",
+                    style={
+                        "fontWeight": "700",
+                        "color": "#2c3e50"
+                    }
+                ),
+
+                html.P(
+                    "This section summarizes the computational methods used to generate the final NMF results and fuzzy explanations.",
+                    className="text-muted mb-4",
+                    style={"fontSize": "14px"}
+                ),
+
+                html.Ul([
+                    html.Li([
+                        html.Strong("NMF algorithm: "),
+                        "Standard NMF"
+                    ]),
+
+                    html.Li([
+                        html.Strong("Initialization method: "),
+                        str(config.get("nmf_init", "Selected in Step 3"))
+                    ]),
+
+                    html.Li([
+                        html.Strong("Clustering methods: "),
+                        "Argmax, K-Means, and Fuzzy C-Means"
+                    ]),
+
+                    html.Li([
+                        html.Strong("Cluster explanations: "),
+                        "Each cluster is described using representative vectors, computed as the mean latent-factor profile of the samples assigned to that cluster."
+                    ]),
+
+                    html.Li([
+                        html.Strong("Centroids: "),
+                        "K-Means and Fuzzy C-Means centroids are computed in the latent-factor space."
+                    ]),
+
+                    html.Li([
+                        html.Strong("Fuzzy set creation method: "),
+                        str(fuzzy_method).replace("_", " ").title()
+                    ]),
+
+                    html.Li([
+                        html.Strong("Membership function shape: "),
+                        str(fuzzy_shape).title()
+                    ]),
+
+                    html.Li([
+                        html.Strong("Number of fuzzy sets: "),
+                        str(num_sets)
+                    ]),
+
+                    html.Li([
+                        html.Strong("Applied to: "),
+                        ", ".join(fuzzy_target)
+                    ]),
+                ], style={
+                    "fontSize": "14px",
+                    "lineHeight": "1.8"
+                })
+
+            ]),
+            className="shadow-sm border-0",
+            style={
+                "backgroundColor": "#f8fbfd",
+                "borderLeft": "5px solid #52b2cf",
+                "borderRadius": "10px"
+            }
+        )
+
     
     @dash_app.callback(
         Output("dataset-summary", "children"),
@@ -5243,6 +5709,84 @@ None):
             df_clusters,
             "cluster_assignments.xlsx",
             sheet_name="Cluster Assignments",
+            index=False
+        )
+
+    @dash_app.callback(
+    Output("download-centroids-representatives", "data"),
+    Input("download-centroids-representatives-btn", "n_clicks"),
+    State("nmf-results-store", "data"),
+    prevent_initial_call=True
+    )
+    def download_centroids_representatives(n_clicks, nmf_results):
+
+        if not n_clicks:
+            raise PreventUpdate
+
+        if not nmf_results or not nmf_results.get("nmf_completed"):
+            raise PreventUpdate
+
+        centroids = nmf_results.get("centroids", {})
+        representatives = nmf_results.get("representatives", {})
+
+        if not centroids and not representatives:
+            raise PreventUpdate
+
+        method_labels = {
+            "argmax": "Argmax Mean",
+            "kmeans": "K-Means Mean",
+            "fcm_hard": "Fuzzy C-Means Mean",
+            "fcm": "Fuzzy C-Means",
+        }
+
+        centroid_labels = {
+            "kmeans": "K-Means Centroid",
+            "fcm": "Fuzzy C-Means Centroid",
+        }
+
+        rows = []
+
+        def add_matrix_rows(matrix, method_name, representation_type):
+            if matrix is None or len(matrix) == 0:
+                return
+
+            matrix = np.asarray(matrix, dtype=float)
+
+            for cluster_idx in range(matrix.shape[0]):
+                row = {
+                    "Representation Type": representation_type,
+                    "Method": method_name,
+                    "Cluster": f"Cluster {cluster_idx + 1}"
+                }
+
+                for lf_idx in range(matrix.shape[1]):
+                    row[f"LF{lf_idx + 1}"] = round(float(matrix[cluster_idx, lf_idx]), 3)
+
+                rows.append(row)
+
+        for method_name, matrix in representatives.items():
+            add_matrix_rows(
+                matrix=matrix,
+                method_name=method_labels.get(method_name, method_name),
+                representation_type="Representative Vector"
+            )
+
+        for method_name, matrix in centroids.items():
+            add_matrix_rows(
+                matrix=matrix,
+                method_name=centroid_labels.get(method_name, method_name),
+                representation_type="Centroid"
+            )
+
+        if not rows:
+            raise PreventUpdate
+
+        df_centroids_representatives = pd.DataFrame(rows)
+
+        return send_excel_file(
+            df_centroids_representatives,
+            "centroids_and_representatives.xlsx",
+            sheet_name="Centroids Representatives",
             index=False
         )
     
