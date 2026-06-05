@@ -2119,9 +2119,10 @@ def register_callbacks(dash_app):
         fig_w = go.Figure()
         fig_h = go.Figure()
 
-        custom_colorscale = [
+        binary_colorscale = [
             [0.0, "blue"],
-            [0.5, "white"],
+            [0.499, "blue"],
+            [0.5, "red"],
             [1.0, "red"]
         ]
 
@@ -2154,7 +2155,7 @@ def register_callbacks(dash_app):
         if not nmf_results or not nmf_results.get("nmf_completed"):
 
             fig_w.update_layout(
-                title="Matrix W Heatmap",
+                title="Matrix W Binary Heatmap",
                 **fixed_layout_w
             )
             fig_w.add_annotation(
@@ -2168,7 +2169,7 @@ def register_callbacks(dash_app):
             )
 
             fig_h.update_layout(
-                title="Matrix H Heatmap",
+                title="Matrix H Binary Heatmap",
                 **fixed_layout_h
             )
             fig_h.add_annotation(
@@ -2198,6 +2199,24 @@ def register_callbacks(dash_app):
             W = np.asarray(W, dtype=float)
             H = np.asarray(H, dtype=float)
 
+            # ============================================================
+            # BINARIZZAZIONE MATRIX W
+            # Ogni feature viene associata al latent factor dominante.
+            # ============================================================
+
+            W_binary = np.zeros_like(W)
+            dominant_lf_for_feature = np.argmax(W, axis=1)
+            W_binary[np.arange(W.shape[0]), dominant_lf_for_feature] = 1
+
+            # ============================================================
+            # BINARIZZAZIONE MATRIX H
+            # Ogni sample viene associato al latent factor dominante.
+            # ============================================================
+
+            H_binary = np.zeros_like(H)
+            dominant_lf_for_sample = np.argmax(H, axis=0)
+            H_binary[dominant_lf_for_sample, np.arange(H.shape[1])] = 1
+
             feature_labels, sample_labels = get_dataset_labels(dataset_data)
 
             if not feature_labels or len(feature_labels) != W.shape[0]:
@@ -2210,29 +2229,32 @@ def register_callbacks(dash_app):
 
             fig_w = go.Figure(
                 data=go.Heatmap(
-                    z=W,
+                    z=W_binary,
                     x=latent_factor_labels,
                     y=feature_labels,
-                    colorscale=custom_colorscale,
+                    colorscale=binary_colorscale,
                     zmin=0,
                     zmax=1,
                     colorbar=dict(
-                        title="Activation",
+                        title="Binary Activation",
                         thickness=14,
                         len=0.75,
-                        tickvals=[0, 0.5, 1],
-                        ticktext=["Low", "Medium", "High"]
+                        tickvals=[0, 1],
+                        ticktext=[
+                            "0 = inactive",
+                            "1 = active"
+                        ]
                     ),
                     hovertemplate=(
                         "Feature: %{y}<br>"
                         "Latent Factor: %{x}<br>"
-                        "Value: %{z:.3f}<extra></extra>"
+                        "Binary Value: %{z:.0f}<extra></extra>"
                     )
                 )
             )
 
             fig_w.update_layout(
-                title="Matrix W Heatmap",
+                title="Matrix W Binary Heatmap",
                 xaxis_title="Latent Factors",
                 yaxis_title="Features",
                 **fixed_layout_w
@@ -2263,29 +2285,32 @@ def register_callbacks(dash_app):
 
             fig_h = go.Figure(
                 data=go.Heatmap(
-                    z=H,
+                    z=H_binary,
                     x=sample_labels,
                     y=[f"LF{i + 1}" for i in range(H.shape[0])],
-                    colorscale=custom_colorscale,
+                    colorscale=binary_colorscale,
                     zmin=0,
                     zmax=1,
                     colorbar=dict(
-                        title="Activation",
+                        title="Binary Activation",
                         thickness=14,
                         len=0.75,
-                        tickvals=[0, 0.5, 1],
-                        ticktext=["Low", "Medium", "High"]
+                        tickvals=[0, 1],
+                        ticktext=[
+                            "0 = inactive",
+                            "1 = active"
+                        ]
                     ),
                     hovertemplate=(
                         "Latent Factor: %{y}<br>"
                         "Sample: %{x}<br>"
-                        "Value: %{z:.3f}<extra></extra>"
+                        "Binary Value: %{z:.0f}<extra></extra>"
                     )
                 )
             )
 
             fig_h.update_layout(
-                title="Matrix H Heatmap",
+                title="Matrix H Binary Heatmap",
                 xaxis_title="Samples",
                 yaxis_title="Latent Factors",
                 **fixed_layout_h
@@ -2309,7 +2334,7 @@ def register_callbacks(dash_app):
             )
 
             w_download_note = html.P(
-                "Use the camera icon in the graph toolbar to download the Matrix W heatmap as PNG.",
+                "Use the camera icon in the graph toolbar to download the Matrix W binary heatmap as PNG.",
                 className="text-muted mt-3 mb-0",
                 style={
                     "fontSize": "13px"
@@ -2317,7 +2342,7 @@ def register_callbacks(dash_app):
             )
 
             h_download_note = html.P(
-                "Use the camera icon in the graph toolbar to download the Matrix H heatmap as PNG.",
+                "Use the camera icon in the graph toolbar to download the Matrix H binary heatmap as PNG.",
                 className="text-muted mt-3 mb-0",
                 style={
                     "fontSize": "13px"
@@ -2328,7 +2353,7 @@ def register_callbacks(dash_app):
                 dbc.CardBody([
 
                     html.H6(
-                        "Matrix W Heatmap Interpretation",
+                        "Matrix W Binary Heatmap Interpretation",
                         className="mb-2",
                         style={
                             "fontWeight": "700",
@@ -2338,9 +2363,9 @@ def register_callbacks(dash_app):
 
                     html.P(
                         (
-                            "This heatmap represents the activation intensity of dataset features "
-                            "across latent factors in Matrix W. Higher values indicate that a feature "
-                            "contributes more strongly to a specific latent factor."
+                            "This binary heatmap represents the dominant latent factor for each dataset feature. "
+                            "A value of 1 indicates that the feature is mainly associated with that latent factor, "
+                            "whereas 0 indicates no dominant association for that latent factor."
                         ),
                         style={
                             "fontSize": "14px",
@@ -2351,28 +2376,19 @@ def register_callbacks(dash_app):
                     dbc.Row([
                         dbc.Col(
                             dbc.Badge(
-                                "Blue = low feature contribution",
+                                "Blue = inactive",
                                 color="primary",
                                 className="p-2 w-100"
                             ),
-                            md=4
+                            md=6
                         ),
                         dbc.Col(
                             dbc.Badge(
-                                "White = moderate contribution",
-                                color="light",
-                                text_color="dark",
-                                className="p-2 w-100"
-                            ),
-                            md=4
-                        ),
-                        dbc.Col(
-                            dbc.Badge(
-                                "Red = high feature contribution",
+                                "Red = active",
                                 color="danger",
                                 className="p-2 w-100"
                             ),
-                            md=4
+                            md=6
                         ),
                     ], className="g-2 mt-2")
 
@@ -2389,7 +2405,7 @@ def register_callbacks(dash_app):
                 dbc.CardBody([
 
                     html.H6(
-                        "Matrix H Heatmap Interpretation",
+                        "Matrix H Binary Heatmap Interpretation",
                         className="mb-2",
                         style={
                             "fontWeight": "700",
@@ -2399,9 +2415,9 @@ def register_callbacks(dash_app):
 
                     html.P(
                         (
-                            "This heatmap represents the activation intensity of latent factors "
-                            "across samples in Matrix H. Higher values indicate that a sample is "
-                            "more strongly associated with a specific latent factor."
+                            "This binary heatmap represents the dominant latent factor for each sample. "
+                            "A value of 1 indicates that the sample is mainly associated with that latent factor, "
+                            "whereas 0 indicates no dominant association for that latent factor."
                         ),
                         style={
                             "fontSize": "14px",
@@ -2412,28 +2428,19 @@ def register_callbacks(dash_app):
                     dbc.Row([
                         dbc.Col(
                             dbc.Badge(
-                                "Blue = low sample activation",
+                                "Blue = inactive",
                                 color="primary",
                                 className="p-2 w-100"
                             ),
-                            md=4
+                            md=6
                         ),
                         dbc.Col(
                             dbc.Badge(
-                                "White = moderate activation",
-                                color="light",
-                                text_color="dark",
-                                className="p-2 w-100"
-                            ),
-                            md=4
-                        ),
-                        dbc.Col(
-                            dbc.Badge(
-                                "Red = high sample activation",
+                                "Red = active",
                                 color="danger",
                                 className="p-2 w-100"
                             ),
-                            md=4
+                            md=6
                         ),
                     ], className="g-2 mt-2")
 
@@ -2465,7 +2472,7 @@ def register_callbacks(dash_app):
 
             fig_error = go.Figure()
             fig_error.update_layout(
-                title="Matrix Heatmap",
+                title="Matrix Binary Heatmap",
                 template="plotly_white",
                 autosize=False,
                 height=700,
@@ -5404,13 +5411,20 @@ None):
             note_text = (
                 f"This consensus matrix represents pairwise sample co-clustering stability "
                 f"across repeated NMF runs using {method_label} ({mode_label}), "
-                f"initialization {readable_init}, and k={selected_k}."
+                f"initialization {readable_init}, and k={selected_k}. "
+                f"Values range from 0 to 1: values close to 1 indicate that two samples "
+                f"are consistently assigned to the same cluster across repeated runs, "
+                f"whereas values close to 0 indicate that they are rarely assigned to "
+                f"the same cluster."
             )
         else:
             note_text = (
                 f"This consensus matrix represents pairwise sample co-clustering stability "
                 f"across repeated NMF runs using {method_label}, initialization {readable_init}, "
-                f"and k={selected_k}."
+                f"and k={selected_k}. Values range from 0 to 1: values close to 1 indicate "
+                f"that two samples are consistently assigned to the same cluster across "
+                f"repeated runs, whereas values close to 0 indicate that they are rarely "
+                f"assigned to the same cluster."
             )
 
         note = dbc.Card(
