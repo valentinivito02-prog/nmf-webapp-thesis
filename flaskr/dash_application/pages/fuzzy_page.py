@@ -8,10 +8,12 @@ def layout() -> html.Div:
         dcc.Store(id="nmf-results-store", storage_type="session"),
         dcc.Store(id="fuzzy-settings", storage_type="session"),
         dcc.Store(id="fuzzy-results", storage_type="session"),
+        dcc.Store(id="k-experiment-status", storage_type="session"),
 
         dcc.Download(id="download-w-explanations"),
         dcc.Download(id="download-h-explanations"),
         dcc.Download(id="download-example-explanations"),
+        dcc.Download(id="download-methods-configuration"),
 
         dbc.Row(
             dbc.Col(
@@ -35,10 +37,7 @@ def layout() -> html.Div:
                         dbc.Row([
 
                             dbc.Col([
-                                html.H5(
-                                    "Number of Fuzzy Sets",
-                                    className="mb-3"
-                                ),
+                                html.H5("Number of Fuzzy Sets", className="mb-3"),
                                 dcc.Input(
                                     id="num-fuzzy-sets",
                                     type="number",
@@ -49,50 +48,26 @@ def layout() -> html.Div:
                             ], md=4),
 
                             dbc.Col([
-                                html.H5(
-                                    "Creation Method",
-                                    className="mb-3"
-                                ),
+                                html.H5("Creation Method", className="mb-3"),
                                 dcc.RadioItems(
                                     id="fuzzy-method",
                                     options=[
-                                        {
-                                            "label": " Equidistant",
-                                            "value": "equidistant"
-                                        },
-                                        {
-                                            "label": " Quartile-based",
-                                            "value": "quartile"
-                                        },
-                                        {
-                                            "label": " Manual (not implemented)",
-                                            "value": "manual"
-                                        },
+                                        {"label": " Equidistant", "value": "equidistant"},
+                                        {"label": " Quartile-based", "value": "quartile"},
+                                        {"label": " Manual (not implemented)", "value": "manual"},
                                     ],
                                     value="equidistant"
                                 ),
                             ], md=4),
 
                             dbc.Col([
-                                html.H5(
-                                    "Membership Function Shape",
-                                    className="mb-3"
-                                ),
+                                html.H5("Membership Function Shape", className="mb-3"),
                                 dcc.Dropdown(
                                     id="fuzzy-shape",
                                     options=[
-                                        {
-                                            "label": "Gaussian",
-                                            "value": "gaussian"
-                                        },
-                                        {
-                                            "label": "Triangular",
-                                            "value": "triangular"
-                                        },
-                                        {
-                                            "label": "Trapezoidal",
-                                            "value": "trapezoidal"
-                                        },
+                                        {"label": "Gaussian", "value": "gaussian"},
+                                        {"label": "Triangular", "value": "triangular"},
+                                        {"label": "Trapezoidal", "value": "trapezoidal"},
                                     ],
                                     value="gaussian"
                                 ),
@@ -100,24 +75,15 @@ def layout() -> html.Div:
 
                         ], className="mb-4"),
 
-                        html.H5(
-                            "Apply to",
-                            className="mb-3"
-                        ),
+                        html.H5("Apply to", className="mb-3"),
 
                         dbc.Card(
                             dbc.CardBody([
                                 dcc.Checklist(
                                     id="fuzzy-target",
                                     options=[
-                                        {
-                                            "label": " Matrix W (Latent Factors)",
-                                            "value": "W"
-                                        },
-                                        {
-                                            "label": " Matrix H (Clusters)",
-                                            "value": "H"
-                                        },
+                                        {"label": " Matrix W (Latent Factors)", "value": "W"},
+                                        {"label": " Matrix H (Clusters)", "value": "H"},
                                     ],
                                     value=["W"]
                                 ),
@@ -140,10 +106,7 @@ def layout() -> html.Div:
                             className="mt-2"
                         ),
 
-                        html.H5(
-                            "Results",
-                            className="mb-3 mt-4"
-                        ),
+                        html.H5("Results", className="mb-3 mt-4"),
 
                         dbc.Card(
                             dbc.CardBody([
@@ -162,7 +125,7 @@ def layout() -> html.Div:
                                         children=[
 
                                             dcc.Tab(
-                                                label="W Fuzzy Representations",
+                                                label="Latent Factor Explanations (W)",
                                                 value="tab-fuzzy-w",
 
                                                 style={
@@ -183,7 +146,7 @@ def layout() -> html.Div:
                                                         html.Div(
                                                             id="fuzzy-w-output",
                                                             children=dbc.Alert(
-                                                                "W fuzzy representations will be displayed here.",
+                                                                "Latent factor explanations will be displayed here.",
                                                                 color="light"
                                                             ),
                                                             className="mt-3"
@@ -192,10 +155,8 @@ def layout() -> html.Div:
                                                         html.Div(
                                                             dbc.Button(
                                                                 [
-                                                                    html.I(
-                                                                        className="fas fa-download me-2"
-                                                                    ),
-                                                                    "Download W Fuzzy Representations"
+                                                                    html.I(className="fas fa-download me-2"),
+                                                                    "Download Latent Factor Explanations"
                                                                 ],
                                                                 id="download-w-explanations-btn",
                                                                 color="primary",
@@ -213,7 +174,7 @@ def layout() -> html.Div:
                                             ),
 
                                             dcc.Tab(
-                                                label="Cluster Explanations",
+                                                label="Cluster Explanations (H)",
                                                 value="tab-fuzzy-h",
 
                                                 style={
@@ -243,9 +204,7 @@ def layout() -> html.Div:
                                                         html.Div(
                                                             dbc.Button(
                                                                 [
-                                                                    html.I(
-                                                                        className="fas fa-download me-2"
-                                                                    ),
+                                                                    html.I(className="fas fa-download me-2"),
                                                                     "Download Cluster Explanations"
                                                                 ],
                                                                 id="download-h-explanations-btn",
@@ -318,9 +277,7 @@ def layout() -> html.Div:
                                                         html.Div(
                                                             dbc.Button(
                                                                 [
-                                                                    html.I(
-                                                                        className="fas fa-download me-2"
-                                                                    ),
+                                                                    html.I(className="fas fa-download me-2"),
                                                                     "Download Examples"
                                                                 ],
                                                                 id="download-example-explanations-btn",
@@ -355,42 +312,33 @@ def layout() -> html.Div:
                                                 },
 
                                                 children=[
-                                                    html.Div(
-                                                        id="methods-overview-output",
-                                                        children=dbc.Alert(
-                                                            "Methods overview will be displayed here after generating fuzzy explanations.",
-                                                            color="light"
+                                                    html.Div([
+                                                        html.Div(
+                                                            id="methods-overview-output",
+                                                            children=dbc.Alert(
+                                                                "Methods overview will be displayed here after generating fuzzy explanations.",
+                                                                color="light"
+                                                            ),
+                                                            className="mt-3"
                                                         ),
-                                                        className="mt-3"
-                                                    )
-                                                ]
-                                            ),
 
-                                            dcc.Tab(
-                                                label="Configuration Summary",
-                                                value="tab-fuzzy-summary",
-
-                                                style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "500"
-                                                },
-
-                                                selected_style={
-                                                    "padding": "10px",
-                                                    "fontWeight": "600",
-                                                    "borderTop": "3px solid #52b2cf",
-                                                    "backgroundColor": "white"
-                                                },
-
-                                                children=[
-                                                    html.Div(
-                                                        id="fuzzy-summary",
-                                                        children=dbc.Alert(
-                                                            "Fuzzy configuration summary will be displayed here.",
-                                                            color="light"
+                                                        html.Div(
+                                                            dbc.Button(
+                                                            [
+                                                                html.I(className="fas fa-download me-2"),
+                                                                "Download Methods Configuration"
+                                                            ],
+                                                            id="download-methods-configuration-btn",
+                                                            color="primary",
+                                                            style={
+                                                                "borderRadius": "10px",
+                                                                "fontWeight": "600",
+                                                                "padding": "10px 18px"
+                                                            }
                                                         ),
-                                                        className="mt-3"
-                                                    )
+                                                            className="d-flex justify-content-end mt-3"
+                                                        )
+                                                    ])
                                                 ]
                                             ),
 
@@ -410,9 +358,7 @@ def layout() -> html.Div:
                                     [
                                         html.I(className="fas fa-plug me-2"),
 
-                                        html.Strong(
-                                            "Explain with Fuxplainer: "
-                                        ),
+                                        html.Strong("Explain with Fuxplainer: "),
 
                                         "Fuzzy results are exposed via API to the endpoint ",
 
@@ -431,9 +377,7 @@ def layout() -> html.Div:
 
                                     dbc.Button(
                                         [
-                                            html.I(
-                                                className="fas fa-share-alt me-2"
-                                            ),
+                                            html.I(className="fas fa-share-alt me-2"),
                                             "Send results to Fuxplainer"
                                         ],
                                         id="send-to-fuxplainer-btn",
@@ -444,9 +388,7 @@ def layout() -> html.Div:
 
                                     dbc.Button(
                                         [
-                                            html.I(
-                                                className="fas fa-check-circle me-2"
-                                            ),
+                                            html.I(className="fas fa-check-circle me-2"),
                                             "Check API availability"
                                         ],
                                         id="check-api-btn",
@@ -472,9 +414,7 @@ def layout() -> html.Div:
 
                             dbc.Button(
                                 [
-                                    html.I(
-                                        className="fas fa-arrow-left me-2"
-                                    ),
+                                    html.I(className="fas fa-arrow-left me-2"),
                                     "Back"
                                 ],
                                 href="/run",

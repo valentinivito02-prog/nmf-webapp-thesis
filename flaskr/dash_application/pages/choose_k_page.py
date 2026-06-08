@@ -10,7 +10,6 @@ def layout() -> html.Div:
         dcc.Store(id="k-experiment-status", storage_type="session"),
 
         dcc.Download(id="download-k-results"),
-        dcc.Download(id="download-k-config"),
         dcc.Download(id="download-k-graph"),
         dcc.Download(id="download-k-metrics"),
         dcc.Download(id="download-consensus-matrix"),
@@ -406,23 +405,6 @@ def layout() -> html.Div:
                                                             id="k-selection-summary",
                                                             className="mt-3"
                                                         ),
-
-                                                        html.Div(
-                                                            dbc.Button(
-                                                                [
-                                                                    html.I(className="fas fa-download me-2"),
-                                                                    "Download Configuration"
-                                                                ],
-                                                                id="download-k-config-btn",
-                                                                color="primary",
-                                                                style={
-                                                                    "borderRadius": "10px",
-                                                                    "fontWeight": "600",
-                                                                    "padding": "10px 18px"
-                                                                }
-                                                            ),
-                                                            className="d-flex justify-content-end mt-3"
-                                                        )
                                                     ])
                                                 ]
                                             ),

@@ -2492,7 +2492,6 @@ def register_callbacks(dash_app):
     
     
     @dash_app.callback(
-        Output("fuzzy-summary", "children"),
         Output("fuzzy-w-output", "children"),
         Output("fuzzy-h-output", "children"),
         Output("fuzzy-examples", "children"),
@@ -2519,7 +2518,6 @@ def register_callbacks(dash_app):
     ):
         if not n_clicks:
             return (
-                dash.no_update,
                 dash.no_update,
                 dash.no_update,
                 dash.no_update,
@@ -2741,42 +2739,175 @@ def register_callbacks(dash_app):
                 ]
             )
         
-        def build_w_cards(w_rows):
+
+        def description_card(title, text):
+            return dbc.Card(
+                dbc.CardBody([
+                    html.H6(
+                        title,
+                        className="mb-2",
+                        style={
+                            "fontWeight": "700",
+                            "color": "#2c3e50"
+                        }
+                    ),
+                    html.P(
+                        text,
+                        className="mb-0",
+                        style={
+                            "fontSize": "13px",
+                            "lineHeight": "1.7",
+                            "color": "#2c3e50"
+                        }
+                    )
+                ]),
+                className="mb-3 shadow-sm border-0",
+                style={
+                    "backgroundColor": "white",
+                    "borderRadius": "12px"
+                }
+            )
+
+
+        def build_w_cards(w_rows, w_descriptions=None):
+            if w_descriptions is None:
+                w_descriptions = []
+
             if not w_rows:
                 return empty_section_card(
-                    "No W fuzzy representation available",
+                    "No latent factor explanations available",
                     "Select Matrix W and generate fuzzy explanations to display this section."
                 )
+
             factors = {}
+
             for row in w_rows:
-                factor = row.get("Latent Factor") or row.get("latent_factor") or row.get("LF") or row.get("Factor")
+                factor = (
+                    row.get("Latent Factor")
+                    or row.get("latent_factor")
+                    or row.get("LF")
+                    or row.get("Factor")
+                )
+
                 if not factor:
                     factor = "Latent Factor"
+
                 factors.setdefault(factor, []).append(row)
+
             children = [
                 html.H5(
-                    "W Fuzzy Representation",
+                    "Latent Factor Explanations (Matrix W)",
                     className="mb-2",
                     style={
                         "fontWeight": "700",
                         "color": "#2c3e50"
                     }
                 ),
+
                 html.P(
                     "Fuzzy linguistic labels describe how strongly each dataset feature contributes to each latent factor.",
                     className="text-muted mb-3",
                     style={"fontSize": "14px"}
                 ),
+
                 interpretation_card(
                     "Matrix W Interpretation",
                     (
                         "Matrix W represents the relationship between dataset features and latent factors. "
-                        "Higher fuzzy labels indicate stronger feature contributions to a given latent factor."
+                        "Latent factor explanations are obtained by summarizing the fuzzy contribution "
+                        "levels of the dataset features associated with each latent factor."
                     )
                 )
             ]
+
+            # ============================================================
+            # TEXTUAL LATENT FACTOR EXPLANATIONS - CARD VERSION
+            # ============================================================
+
+            if w_descriptions:
+                factor_cards = []
+
+                for desc in w_descriptions:
+                    factor_title = "Latent Factor Explanation"
+
+                    if desc.startswith("The influence of ") and " is:" in desc:
+                        try:
+                            factor_title = desc.split("The influence of ")[1].split(" is:")[0]
+                            factor_title = make_readable_label(factor_title)
+                        except Exception:
+                            factor_title = "Latent Factor Explanation"
+
+                    factor_cards.append(
+                        dbc.Card(
+                            dbc.CardBody([
+                                html.H6(
+                                    factor_title,
+                                    className="mb-2",
+                                    style={
+                                        "fontWeight": "700",
+                                        "color": "#2c3e50"
+                                    }
+                                ),
+
+                                html.P(
+                                    desc,
+                                    className="mb-0",
+                                    style={
+                                        "fontSize": "13px",
+                                        "lineHeight": "1.7",
+                                        "color": "#2c3e50"
+                                    }
+                                )
+                            ]),
+                            className="mb-3 shadow-sm border-0",
+                            style={
+                                "backgroundColor": "white",
+                                "borderRadius": "12px"
+                            }
+                        )
+                    )
+
+                children.append(
+                    dbc.Card(
+                        dbc.CardBody([
+                            html.H6(
+                                "Latent Factor-Level Fuzzy Explanations",
+                                className="mb-3",
+                                style={
+                                    "fontWeight": "700",
+                                    "color": "#2c3e50"
+                                }
+                            ),
+
+                            html.Div(factor_cards)
+                        ]),
+                        className="mb-4 shadow-sm border-0",
+                        style={
+                            "backgroundColor": "#f8fbfd",
+                            "borderLeft": "5px solid #52b2cf",
+                            "borderRadius": "10px"
+                        }
+                    )
+                )
+
+            # ============================================================
+            # FUZZY TABLES - DO NOT REMOVE
+            # ============================================================
+
+            children.append(
+                html.H5(
+                    "Latent Factor Fuzzy Tables",
+                    className="mb-3 mt-4",
+                    style={
+                        "fontWeight": "700",
+                        "color": "#2c3e50"
+                    }
+                )
+            )
+
             for factor_name, factor_rows in factors.items():
                 clean_rows = []
+
                 for row in factor_rows:
                     clean_row = {
                         key: value
@@ -2784,6 +2915,7 @@ def register_callbacks(dash_app):
                         if key not in ["Latent Factor", "latent_factor", "LF", "Factor"]
                     }
                     clean_rows.append(clean_row)
+
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2796,6 +2928,7 @@ def register_callbacks(dash_app):
                                         "color": "#2c3e50"
                                     }
                                 ),
+
                                 build_table_from_rows(clean_rows)
                             ],
                             style={"padding": "18px"}
@@ -2807,8 +2940,10 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
+
             return html.Div(children)
-        
+
+
         def build_h_cards(h_tables, h_descriptions=None):
             if h_descriptions is None:
                 h_descriptions = []
@@ -2828,7 +2963,7 @@ def register_callbacks(dash_app):
 
             children = [
                 html.H5(
-                    "Cluster Explanations",
+                    "Cluster Explanations (Matrix H)",
                     className="mb-2",
                     style={
                         "fontWeight": "700",
@@ -2845,18 +2980,109 @@ def register_callbacks(dash_app):
                 interpretation_card(
                     "Matrix H Interpretation",
                     (
-                        "Matrix H describes how latent factors are activated across samples and clusters. "
-                        "These fuzzy explanations help interpret the structure discovered by the selected clustering algorithms."
+                        "Matrix H represents the activation of latent factors across samples. "
+                        "Cluster explanations are obtained by summarizing the latent-factor profiles "
+                        "of the samples assigned to each cluster. These fuzzy explanations help interpret "
+                        "the structure discovered by the selected clustering algorithms."
                     )
                 )
             ]
 
+            # ============================================================
+            # TEXTUAL CLUSTER EXPLANATIONS - CARD VERSION
+            # ============================================================
+
             if h_descriptions:
+                grouped_descriptions = {}
+
+                for desc in h_descriptions:
+                    method_name = "Method"
+
+                    if desc.startswith("[") and "]" in desc:
+                        method_name = desc.split("]")[0].replace("[", "")
+                        clean_desc = desc.split("]", 1)[1].strip()
+                    else:
+                        clean_desc = desc
+
+                    method_title = method_labels.get(
+                        method_name,
+                        make_readable_label(method_name)
+                    )
+
+                    grouped_descriptions.setdefault(method_title, []).append(clean_desc)
+
+                method_sections = []
+
+                for method_title, descriptions in grouped_descriptions.items():
+                    cluster_cards = []
+
+                    for desc in descriptions:
+                        cluster_title = "Cluster Explanation"
+
+                        if "Samples in " in desc and " are generally" in desc:
+                            try:
+                                cluster_title = desc.split("Samples in ")[1].split(" are generally")[0]
+                                cluster_title = make_readable_label(cluster_title)
+                            except Exception:
+                                cluster_title = "Cluster Explanation"
+
+                        cluster_cards.append(
+                            dbc.Card(
+                                dbc.CardBody([
+                                    html.H6(
+                                        cluster_title,
+                                        className="mb-2",
+                                        style={
+                                            "fontWeight": "700",
+                                            "color": "#2c3e50"
+                                        }
+                                    ),
+
+                                    html.P(
+                                        desc,
+                                        className="mb-0",
+                                        style={
+                                            "fontSize": "13px",
+                                            "lineHeight": "1.7",
+                                            "color": "#2c3e50"
+                                        }
+                                    )
+                                ]),
+                                className="mb-3 shadow-sm border-0",
+                                style={
+                                    "backgroundColor": "white",
+                                    "borderRadius": "12px"
+                                }
+                            )
+                        )
+
+                    method_sections.append(
+                        dbc.Card(
+                            dbc.CardBody([
+                                html.H6(
+                                    method_title,
+                                    className="mb-3",
+                                    style={
+                                        "fontWeight": "700",
+                                        "color": "#2c3e50"
+                                    }
+                                ),
+
+                                html.Div(cluster_cards)
+                            ]),
+                            className="mb-3 shadow-sm border-0",
+                            style={
+                                "backgroundColor": "white",
+                                "borderRadius": "12px"
+                            }
+                        )
+                    )
+
                 children.append(
                     dbc.Card(
                         dbc.CardBody([
                             html.H6(
-                                "Textual Cluster Explanations",
+                                "Cluster-Level Fuzzy Explanations",
                                 className="mb-3",
                                 style={
                                     "fontWeight": "700",
@@ -2864,17 +3090,7 @@ def register_callbacks(dash_app):
                                 }
                             ),
 
-                            html.Ul([
-                                html.Li(
-                                    desc,
-                                    style={
-                                        "fontSize": "13px",
-                                        "lineHeight": "1.6",
-                                        "marginBottom": "6px"
-                                    }
-                                )
-                                for desc in h_descriptions
-                            ])
+                            html.Div(method_sections)
                         ]),
                         className="mb-4 shadow-sm border-0",
                         style={
@@ -2884,6 +3100,21 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
+
+            # ============================================================
+            # FUZZY TABLES - DO NOT REMOVE
+            # ============================================================
+
+            children.append(
+                html.H5(
+                    "Cluster Fuzzy Tables",
+                    className="mb-3 mt-4",
+                    style={
+                        "fontWeight": "700",
+                        "color": "#2c3e50"
+                    }
+                )
+            )
 
             for method_name, rows in h_tables.items():
                 method_title = method_labels.get(
@@ -2903,6 +3134,7 @@ def register_callbacks(dash_app):
                                         "color": "#2c3e50"
                                     }
                                 ),
+
                                 build_table_from_rows(rows)
                             ],
                             style={"padding": "18px"}
@@ -2916,14 +3148,20 @@ def register_callbacks(dash_app):
                 )
 
             return html.Div(children)
-        
-        def build_sample_cards(sample_rows):
+
+
+        def build_sample_cards(sample_rows, sample_descriptions=None):
+            if sample_descriptions is None:
+                sample_descriptions = []
+
             if not sample_rows:
                 return empty_section_card(
                     "No example interpretations available",
                     "Generate fuzzy explanations to display sample-level interpretations."
                 )
+
             samples = {}
+
             for row in sample_rows:
                 sample = (
                     row.get("Sample")
@@ -2931,9 +3169,12 @@ def register_callbacks(dash_app):
                     or row.get("Example")
                     or row.get("example")
                 )
+
                 if not sample:
                     sample = "Sample"
+
                 samples.setdefault(sample, []).append(row)
+
             children = [
                 html.H5(
                     "Example Interpretations",
@@ -2943,11 +3184,13 @@ def register_callbacks(dash_app):
                         "color": "#2c3e50"
                     }
                 ),
+
                 html.P(
                     "Sample-level fuzzy explanations describe the latent-factor activation pattern of individual observations.",
                     className="text-muted mb-3",
                     style={"fontSize": "14px"}
                 ),
+
                 interpretation_card(
                     "Sample Interpretation",
                     (
@@ -2956,8 +3199,95 @@ def register_callbacks(dash_app):
                     )
                 )
             ]
+
+            # ============================================================
+            # TEXTUAL SAMPLE EXPLANATIONS
+            # ============================================================
+
+            if sample_descriptions:
+                sample_description_cards = []
+
+                for desc in sample_descriptions:
+                    sample_title = "Sample Explanation"
+
+                    if " on " in desc and " is:" in desc:
+                        try:
+                            sample_title = desc.split(" on ")[1].split(" is:")[0]
+                            sample_title = make_readable_label(sample_title)
+                        except Exception:
+                            sample_title = "Sample Explanation"
+
+                    sample_description_cards.append(
+                        dbc.Card(
+                            dbc.CardBody([
+                                html.H6(
+                                    sample_title,
+                                    className="mb-2",
+                                    style={
+                                        "fontWeight": "700",
+                                        "color": "#2c3e50"
+                                    }
+                                ),
+
+                                html.P(
+                                    desc,
+                                    className="mb-0",
+                                    style={
+                                        "fontSize": "13px",
+                                        "lineHeight": "1.7",
+                                        "color": "#2c3e50"
+                                    }
+                                )
+                            ]),
+                            className="mb-3 shadow-sm border-0",
+                            style={
+                                "backgroundColor": "white",
+                                "borderRadius": "12px"
+                            }
+                        )
+                    )
+
+                children.append(
+                    dbc.Card(
+                        dbc.CardBody([
+                            html.H6(
+                                "Sample-Level Fuzzy Explanations",
+                                className="mb-3",
+                                style={
+                                    "fontWeight": "700",
+                                    "color": "#2c3e50"
+                                }
+                            ),
+
+                            html.Div(sample_description_cards)
+                        ]),
+                        className="mb-4 shadow-sm border-0",
+                        style={
+                            "backgroundColor": "#f8fbfd",
+                            "borderLeft": "5px solid #52b2cf",
+                            "borderRadius": "10px"
+                        }
+                    )
+                )
+
+            # ============================================================
+            # SAMPLE FUZZY TABLES
+            # ============================================================
+
+            children.append(
+                html.H5(
+                    "Sample Fuzzy Tables",
+                    className="mb-3 mt-4",
+                    style={
+                        "fontWeight": "700",
+                        "color": "#2c3e50"
+                    }
+                )
+            )
+
             for sample_name, rows in samples.items():
                 clean_rows = []
+
                 for row in rows:
                     clean_row = {
                         key: value
@@ -2965,6 +3295,7 @@ def register_callbacks(dash_app):
                         if key not in ["Sample", "sample", "Example", "example"]
                     }
                     clean_rows.append(clean_row)
+
                 children.append(
                     dbc.Card(
                         dbc.CardBody(
@@ -2977,6 +3308,7 @@ def register_callbacks(dash_app):
                                         "color": "#2c3e50"
                                     }
                                 ),
+
                                 build_table_from_rows(clean_rows)
                             ],
                             style={"padding": "18px"}
@@ -2988,43 +3320,80 @@ def register_callbacks(dash_app):
                         }
                     )
                 )
+
             return html.Div(children)
-        
+
+
         if not nmf_results or not nmf_results.get("nmf_completed"):
             alert = warning_card(
                 "Final NMF required",
                 "Please run the final NMF before generating fuzzy explanations."
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         if num_sets is None or num_sets < 2:
             alert = warning_card(
                 "Invalid number of fuzzy sets",
                 "Please select at least 2 fuzzy sets."
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         if fuzzy_method != "equidistant":
             alert = warning_card(
                 "Method not available",
                 "Only the Equidistant fuzzy creation method is currently connected to the backend."
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         if fuzzy_shape != "gaussian":
             alert = warning_card(
                 "Shape not available",
                 "Only Gaussian membership functions are currently implemented in the backend."
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         if not fuzzy_target:
             alert = warning_card(
                 "Missing target matrix",
                 "Please select at least one target matrix."
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         try:
             fuzzy_results = run_fuzzy_from_nmf_results(
                 nmf_results=nmf_results,
@@ -3037,90 +3406,50 @@ def register_callbacks(dash_app):
                 "Fuzzy generation error",
                 f"Error while generating fuzzy explanations: {str(e)}"
             )
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, alert
-        
+            return (
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                dash.no_update,
+                alert
+            )
+
         method_labels = {
             "equidistant": "Equidistant",
             "quartile": "Quartile-Based",
             "manual": "Manual"
         }
+
         shape_labels = {
             "gaussian": "Gaussian",
             "triangular": "Triangular",
             "trapezoidal": "Trapezoidal"
         }
+
         target_labels = {
             "W": "Matrix W",
             "H": "Matrix H"
         }
+
         applied_to = ", ".join(
             target_labels.get(target, target)
             for target in fuzzy_target
         )
-        
-        summary = dbc.Card(
-            dbc.CardBody(
-                [
-                    html.H5(
-                        "Fuzzy Configuration Summary",
-                        className="mb-2",
-                        style={
-                            "fontWeight": "700",
-                            "color": "#2c3e50"
-                        }
-                    ),
-                    html.P(
-                        "Summary of the fuzzy explanation settings applied to the final NMF results.",
-                        className="text-muted mb-4",
-                        style={"fontSize": "14px"}
-                    ),
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                info_card("Fuzzy Sets", num_sets),
-                                md=6,
-                                className="mb-3"
-                            ),
-                            dbc.Col(
-                                info_card(
-                                    "Creation Method",
-                                    method_labels.get(fuzzy_method, fuzzy_method)
-                                ),
-                                md=6,
-                                className="mb-3"
-                            ),
-                            dbc.Col(
-                                info_card(
-                                    "Membership Shape",
-                                    shape_labels.get(fuzzy_shape, fuzzy_shape)
-                                ),
-                                md=6
-                            ),
-                            dbc.Col(
-                                info_card("Applied To", applied_to),
-                                md=6
-                            ),
-                        ],
-                        className="g-3"
-                    )
-                ],
-                style={"padding": "22px"}
-            ),
-            className="shadow-sm border-0",
-            style={
-                "backgroundColor": "#f8fbfd",
-                "borderLeft": "5px solid #52b2cf",
-                "borderRadius": "10px"
-            }
-        )
-        
+
         w_rows = fuzzy_results.get("w_fuzzy_table", [])
         h_tables = fuzzy_results.get("h_fuzzy_tables", {})
         sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
+
+        w_descriptions = fuzzy_results.get("w_descriptions", [])
         h_descriptions = fuzzy_results.get("h_descriptions", [])
+        sample_descriptions = fuzzy_results.get("sample_descriptions", [])
 
         if "W" in fuzzy_target:
-            w_output = build_w_cards(w_rows)
+            w_output = build_w_cards(
+                w_rows,
+                w_descriptions
+            )
         else:
             w_output = empty_section_card(
                 "No W fuzzy representation available",
@@ -3138,7 +3467,10 @@ def register_callbacks(dash_app):
                 "Matrix H was not selected as a fuzzy explanation target."
             )
 
-        examples_output = build_sample_cards(sample_rows)
+        examples_output = build_sample_cards(
+            sample_rows,
+            sample_descriptions
+        )
 
         settings_data = {
             "fuzzy_completed": True,
@@ -3152,7 +3484,6 @@ def register_callbacks(dash_app):
         save_explanations(fuzzy_results)
 
         return (
-            summary,
             w_output,
             h_output,
             examples_output,
@@ -3198,10 +3529,10 @@ def register_callbacks(dash_app):
     
 
     @dash_app.callback(
-    Output("selected-sample-explanation", "children"),
-    Input("sample-explanation-selector", "value"),
-    State("fuzzy-results", "data"),
-    prevent_initial_call=False
+        Output("selected-sample-explanation", "children"),
+        Input("sample-explanation-selector", "value"),
+        State("fuzzy-results", "data"),
+        prevent_initial_call=False
     )
     def show_selected_sample_explanation(selected_sample, fuzzy_results):
 
@@ -3212,6 +3543,7 @@ def register_callbacks(dash_app):
             )
 
         sample_rows = fuzzy_results.get("sample_fuzzy_table", [])
+        sample_descriptions = fuzzy_results.get("sample_descriptions", [])
 
         selected_row = None
 
@@ -3225,6 +3557,13 @@ def register_callbacks(dash_app):
                 "Selected sample not found.",
                 color="warning"
             )
+
+        selected_description = None
+
+        for desc in sample_descriptions:
+            if selected_sample in desc:
+                selected_description = desc
+                break
 
         rows = []
 
@@ -3250,34 +3589,80 @@ def register_callbacks(dash_app):
                 ])
             )
 
-        return dbc.Card(
-            dbc.CardBody([
-                html.H6(
-                    f"Explanation for {selected_sample}",
-                    className="mb-3",
-                    style={
-                        "fontWeight": "700",
-                        "color": "#2c3e50"
-                    }
-                ),
+        children = [
+            html.H6(
+                f"Explanation for {selected_sample}",
+                className="mb-3",
+                style={
+                    "fontWeight": "700",
+                    "color": "#2c3e50"
+                }
+            )
+        ]
 
-                dbc.Table(
-                    [
-                        html.Thead(
-                            html.Tr([
-                                html.Th("Latent Factor"),
-                                html.Th("Fuzzy Label")
-                            ])
+        if selected_description:
+            children.append(
+                dbc.Card(
+                    dbc.CardBody([
+                        html.H6(
+                            "Textual Explanation",
+                            className="mb-2",
+                            style={
+                                "fontWeight": "700",
+                                "color": "#2c3e50"
+                            }
                         ),
-                        html.Tbody(rows)
-                    ],
-                    bordered=True,
-                    hover=True,
-                    responsive=True,
-                    striped=True,
-                    size="sm"
+
+                        html.P(
+                            selected_description,
+                            className="mb-0",
+                            style={
+                                "fontSize": "13px",
+                                "lineHeight": "1.7",
+                                "color": "#2c3e50"
+                            }
+                        )
+                    ]),
+                    className="mb-3 shadow-sm border-0",
+                    style={
+                        "backgroundColor": "white",
+                        "borderRadius": "12px"
+                    }
                 )
-            ]),
+            )
+
+        children.append(
+            html.H6(
+                "Sample Fuzzy Table",
+                className="mb-3 mt-3",
+                style={
+                    "fontWeight": "700",
+                    "color": "#2c3e50"
+                }
+            )
+        )
+
+        children.append(
+            dbc.Table(
+                [
+                    html.Thead(
+                        html.Tr([
+                            html.Th("Latent Factor"),
+                            html.Th("Fuzzy Label")
+                        ])
+                    ),
+                    html.Tbody(rows)
+                ],
+                bordered=True,
+                hover=True,
+                responsive=True,
+                striped=True,
+                size="sm"
+            )
+        )
+
+        return dbc.Card(
+            dbc.CardBody(children),
             className="shadow-sm border-0",
             style={
                 "backgroundColor": "#f8fbfd",
@@ -3308,12 +3693,77 @@ def register_callbacks(dash_app):
         fuzzy_target = fuzzy_settings.get("fuzzy_target", [])
         num_sets = fuzzy_settings.get("num_fuzzy_sets", "-")
 
+        selected_k = nmf_results.get("selected_k", "-") if nmf_results else "-"
+
+        init_labels = {
+            "random": "Random",
+            "nndsvd": "NNDSVD"
+        }
+
+        target_labels = {
+            "W": "Matrix W",
+            "H": "Matrix H"
+        }
+
+        readable_init = init_labels.get(
+            str(config.get("nmf_init", "Selected in Step 3")).lower(),
+            str(config.get("nmf_init", "Selected in Step 3"))
+        )
+
+        applied_to = ", ".join(
+            target_labels.get(target, target)
+            for target in fuzzy_target
+        ) if fuzzy_target else "-"
+
+
+        def method_card(title, value, description):
+            return dbc.Col(
+                dbc.Card(
+                    dbc.CardBody([
+                        html.Div(
+                            title,
+                            className="text-muted mb-1",
+                            style={
+                                "fontSize": "13px",
+                                "fontWeight": "600"
+                            }
+                        ),
+
+                        html.H6(
+                            value,
+                            className="mb-2",
+                            style={
+                                "fontWeight": "700",
+                                "color": "#2c3e50"
+                            }
+                        ),
+
+                        html.P(
+                            description,
+                            className="mb-0",
+                            style={
+                                "fontSize": "13px",
+                                "lineHeight": "1.6",
+                                "color": "#2c3e50"
+                            }
+                        )
+                    ]),
+                    className="h-100 shadow-sm border-0",
+                    style={
+                        "backgroundColor": "white",
+                        "borderRadius": "12px"
+                    }
+                ),
+                md=6,
+                className="mb-3"
+            )
+
         return dbc.Card(
             dbc.CardBody([
 
                 html.H5(
                     "Methods Overview",
-                    className="mb-3",
+                    className="mb-2",
                     style={
                         "fontWeight": "700",
                         "color": "#2c3e50"
@@ -3326,55 +3776,69 @@ def register_callbacks(dash_app):
                     style={"fontSize": "14px"}
                 ),
 
-                html.Ul([
-                    html.Li([
-                        html.Strong("NMF algorithm: "),
-                        "Standard NMF"
-                    ]),
+                dbc.Row([
 
-                    html.Li([
-                        html.Strong("Initialization method: "),
-                        str(config.get("nmf_init", "Selected in Step 3"))
-                    ]),
+                    method_card(
+                        "NMF Algorithm",
+                        "Standard NMF",
+                        "Non-negative Matrix Factorization is used to decompose the dataset into latent factors."
+                    ),
 
-                    html.Li([
-                        html.Strong("Clustering methods: "),
-                        "Argmax, K-Means, and Fuzzy C-Means"
-                    ]),
+                    method_card(
+                        "Selected k",
+                        str(selected_k),
+                        "The selected number of latent factors used to compute the final NMF decomposition."
+                    ),
 
-                    html.Li([
-                        html.Strong("Cluster explanations: "),
-                        "Each cluster is described using representative vectors, computed as the mean latent-factor profile of the samples assigned to that cluster."
-                    ]),
+                    method_card(
+                        "Initialization Method",
+                        readable_init,
+                        "The initialization strategy defines how the NMF factor matrices are initialized before optimization."
+                    ),
 
-                    html.Li([
-                        html.Strong("Centroids: "),
-                        "K-Means and Fuzzy C-Means centroids are computed in the latent-factor space."
-                    ]),
+                    method_card(
+                        "Clustering Methods",
+                        "Argmax, K-Means, Fuzzy C-Means",
+                        "Different clustering strategies are applied in the latent-factor space to assign samples to groups."
+                    ),
 
-                    html.Li([
-                        html.Strong("Fuzzy set creation method: "),
-                        str(fuzzy_method).replace("_", " ").title()
-                    ]),
+                    method_card(
+                        "Cluster Explanations",
+                        "Representative vectors",
+                        "Each cluster is described using the mean latent-factor profile of the samples assigned to that cluster."
+                    ),
 
-                    html.Li([
-                        html.Strong("Membership function shape: "),
-                        str(fuzzy_shape).title()
-                    ]),
+                    method_card(
+                        "Centroids",
+                        "K-Means and Fuzzy C-Means",
+                        "Centroids are computed in the latent-factor space and summarize the central profile of each cluster."
+                    ),
 
-                    html.Li([
-                        html.Strong("Number of fuzzy sets: "),
-                        str(num_sets)
-                    ]),
+                    method_card(
+                        "Fuzzy Set Creation",
+                        str(fuzzy_method).replace("_", " ").title(),
+                        "The fuzzy sets define linguistic levels used to transform numerical values into interpretable labels."
+                    ),
 
-                    html.Li([
-                        html.Strong("Applied to: "),
-                        ", ".join(fuzzy_target)
-                    ]),
-                ], style={
-                    "fontSize": "14px",
-                    "lineHeight": "1.8"
-                })
+                    method_card(
+                        "Membership Function",
+                        str(fuzzy_shape).title(),
+                        "The membership function shape controls how numerical values are mapped to fuzzy linguistic labels."
+                    ),
+
+                    method_card(
+                        "Number of Fuzzy Sets",
+                        str(num_sets),
+                        "This parameter determines how many linguistic levels are used in the fuzzy representation."
+                    ),
+
+                    method_card(
+                        "Applied To",
+                        applied_to,
+                        "The fuzzy explanation process is applied to the selected NMF matrices and derived representations."
+                    ),
+
+                ], className="g-3")
 
             ]),
             className="shadow-sm border-0",
@@ -5484,30 +5948,7 @@ None):
         )
 
         return fig, note
-        
-    
-    @dash_app.callback(
-        Output("download-k-config", "data"),
-        Input("download-k-config-btn", "n_clicks"),
-        State("k-experiment-status", "data"),
-        State("selected-k-store", "data"),
-        State("dataset-store", "data"),
-        prevent_initial_call=True
-    )
-    def download_k_configuration(n_clicks, k_status, selected_k_data, dataset_data):
-        if not n_clicks:
-            raise PreventUpdate
-        if not k_status:
-            raise PreventUpdate
-        config = {
-            "dataset": dataset_data.get("display_name") or dataset_data.get("filename") if dataset_data else None,
-            "selected_k": selected_k_data.get("selected_k") if selected_k_data else None,
-            "k_experiment": k_status
-        }
-        return {
-            "content": json.dumps(config, indent=4, ensure_ascii=False),
-            "filename": "k_selection_configuration.json"
-        }
+
     
     @dash_app.callback(
         Output("download-k-graph", "data"),
@@ -5654,6 +6095,7 @@ None):
             index=True
         )
     
+
     @dash_app.callback(
         Output("download-h-matrix", "data"),
         Input("download-h-btn", "n_clicks"),
@@ -5687,6 +6129,7 @@ None):
             index=True
         )
     
+
     @dash_app.callback(
         Output("download-clusters", "data"),
         Input("download-clusters-btn", "n_clicks"),
@@ -5725,6 +6168,7 @@ None):
             sheet_name="Cluster Assignments",
             index=False
         )
+
 
     @dash_app.callback(
     Output("download-centroids-representatives", "data"),
@@ -5804,6 +6248,81 @@ None):
             index=False
         )
     
+
+    @dash_app.callback(
+    Output("download-final-nmf-configuration", "data"),
+    Input("download-final-nmf-configuration-btn", "n_clicks"),
+    State("nmf-results-store", "data"),
+    State("dataset-store", "data"),
+    prevent_initial_call=True
+    )
+    def download_final_nmf_configuration(n_clicks, nmf_results, dataset_data):
+
+        if not n_clicks:
+            raise PreventUpdate
+
+        if not nmf_results or not nmf_results.get("nmf_completed"):
+            raise PreventUpdate
+
+        clustering_labels = {
+            "argmax": "Argmax",
+            "kmeans": "K-Means",
+            "fcm": "Fuzzy C-Means",
+            "fcm_hard": "Fuzzy C-Means"
+        }
+
+        init_labels = {
+            "random": "Random",
+            "nndsvd": "NNDSVD"
+        }
+
+        nmf_labels = {
+            "nmf_standard": "Standard NMF"
+        }
+
+        dataset_name = "Uploaded Dataset"
+
+        if dataset_data:
+            dataset_name = (
+                dataset_data.get("display_name")
+                or dataset_data.get("filename")
+                or "Uploaded Dataset"
+            )
+
+        final_clustering = nmf_results.get("final_clustering", "-")
+        final_init = nmf_results.get("final_init", nmf_results.get("selected_init", "-"))
+        final_nmf = nmf_results.get("final_nmf", "nmf_standard")
+
+        configuration = {
+            "final_nmf_configuration": {
+                "dataset": dataset_name,
+                "selected_k": nmf_results.get("selected_k", "-"),
+                "clustering_algorithm": clustering_labels.get(
+                    final_clustering,
+                    final_clustering
+                ),
+                "initialization": init_labels.get(
+                    final_init,
+                    final_init
+                ),
+                "nmf_algorithm": nmf_labels.get(
+                    final_nmf,
+                    final_nmf
+                )
+            }
+        }
+
+        return dict(
+            content=json.dumps(
+                configuration,
+                indent=4,
+                ensure_ascii=False
+            ),
+            filename="final_nmf_configuration.json",
+            type="application/json"
+        )
+
+
     @dash_app.callback(
         Output("download-w-explanations", "data"),
         Input("download-w-explanations-btn", "n_clicks"),
@@ -5827,6 +6346,7 @@ None):
             "filename": "w_fuzzy_explanations.json"
         }
     
+
     @dash_app.callback(
         Output("download-h-explanations", "data"),
         Input("download-h-explanations-btn", "n_clicks"),
@@ -5850,6 +6370,7 @@ None):
             "filename": "h_fuzzy_explanations.json"
         }
     
+
     @dash_app.callback(
         Output("download-example-explanations", "data"),
         Input("download-example-explanations-btn", "n_clicks"),
@@ -5872,6 +6393,101 @@ None):
             "content": json.dumps(export_data, indent=4, ensure_ascii=False),
             "filename": "example_fuzzy_explanations.json"
         }
+    
+    @dash_app.callback(
+        Output("download-methods-configuration", "data"),
+        Input("download-methods-configuration-btn", "n_clicks"),
+        State("fuzzy-settings", "data"),
+        State("nmf-results-store", "data"),
+        prevent_initial_call=True
+    )
+    def download_methods_configuration(n_clicks, fuzzy_settings, nmf_results):
+
+        if not n_clicks:
+            raise PreventUpdate
+
+        if not fuzzy_settings:
+            raise PreventUpdate
+
+        config = nmf_results.get("config", {}) if nmf_results else {}
+
+        fuzzy_method = fuzzy_settings.get("fuzzy_method", "equidistant")
+        fuzzy_shape = fuzzy_settings.get("fuzzy_shape", "gaussian")
+        fuzzy_target = fuzzy_settings.get("fuzzy_target", [])
+        num_sets = fuzzy_settings.get("num_fuzzy_sets", "-")
+
+        selected_k = nmf_results.get("selected_k", "-") if nmf_results else "-"
+
+        init_labels = {
+            "random": "Random",
+            "nndsvd": "NNDSVD"
+        }
+
+        target_labels = {
+            "W": "Matrix W",
+            "H": "Matrix H"
+        }
+
+        readable_init = init_labels.get(
+            str(config.get("nmf_init", "Selected in Step 3")).lower(),
+            str(config.get("nmf_init", "Selected in Step 3"))
+        )
+
+        applied_to = [
+            target_labels.get(target, target)
+            for target in fuzzy_target
+        ] if fuzzy_target else []
+
+        methods_configuration = {
+            "nmf": {
+                "algorithm": "Standard NMF",
+                "selected_k": selected_k,
+                "initialization_method": readable_init,
+                "description": (
+                    "Non-negative Matrix Factorization is used to decompose "
+                    "the dataset into latent factors."
+                )
+            },
+
+            "clustering": {
+                "methods": [
+                    "Argmax",
+                    "K-Means",
+                    "Fuzzy C-Means"
+                ],
+                "cluster_explanations": "Representative vectors",
+                "centroids": [
+                    "K-Means centroids",
+                    "Fuzzy C-Means centroids"
+                ],
+                "description": (
+                    "Clustering strategies are applied in the latent-factor space. "
+                    "Clusters are described using representative vectors computed "
+                    "as the mean latent-factor profile of assigned samples."
+                )
+            },
+
+            "fuzzy_explanations": {
+                "fuzzy_set_creation": str(fuzzy_method).replace("_", " ").title(),
+                "membership_function": str(fuzzy_shape).title(),
+                "number_of_fuzzy_sets": num_sets,
+                "applied_to": applied_to,
+                "description": (
+                    "Fuzzy linguistic labels are used to transform numerical "
+                    "matrix values into interpretable qualitative descriptions."
+                )
+            }
+        }
+
+        return dict(
+            content=json.dumps(
+                methods_configuration,
+                indent=4,
+                ensure_ascii=False
+            ),
+            filename="methods_configuration.json",
+            type="application/json"
+        )
     
     # ──Callback: Verifica disponibilità API per Fuxplainer ───────────────
     @dash_app.callback(

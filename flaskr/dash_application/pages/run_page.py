@@ -12,6 +12,7 @@ def layout() -> html.Div:
         dcc.Download(id="download-h-matrix"),
         dcc.Download(id="download-clusters"),
         dcc.Download(id="download-centroids-representatives"),
+        dcc.Download(id="download-final-nmf-configuration"),
 
         dbc.Row(
             dbc.Col(
@@ -334,25 +335,46 @@ def layout() -> html.Div:
                                         ),
 
                                         dcc.Tab(
-                                            label="Configuration Summary",
-                                            value="tab-final-summary",
-                                            style={
-                                                "padding": "10px",
-                                                "fontWeight": "500"
-                                            },
-                                            selected_style={
-                                                "padding": "10px",
-                                                "fontWeight": "600",
-                                                "borderTop": "3px solid #52b2cf",
-                                                "backgroundColor": "white"
-                                            },
-                                            children=[
+                                        label="Configuration Summary",
+                                        value="tab-final-summary",
+                                        style={
+                                            "padding": "10px",
+                                            "fontWeight": "500"
+                                        },
+                                        selected_style={
+                                            "padding": "10px",
+                                            "fontWeight": "600",
+                                            "borderTop": "3px solid #52b2cf",
+                                            "backgroundColor": "white"
+                                        },
+                                        children=[
+                                            html.Div([
+
                                                 html.Div(
                                                     id="final-nmf-summary",
                                                     className="mt-3"
+                                                ),
+
+                                                html.Div(
+                                                    dbc.Button(
+                                                        [
+                                                            html.I(className="fas fa-download me-2"),
+                                                            "Download Final NMF Configuration"
+                                                        ],
+                                                        id="download-final-nmf-configuration-btn",
+                                                        color="primary",
+                                                        style={
+                                                            "borderRadius": "10px",
+                                                            "fontWeight": "600",
+                                                            "padding": "10px 18px"
+                                                        }
+                                                    ),
+                                                    className="d-flex justify-content-end mt-3"
                                                 )
-                                            ]
-                                        ),
+
+                                            ])
+                                        ]
+                                    ),
 
                                     ]
                                 )
