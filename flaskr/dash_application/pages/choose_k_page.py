@@ -195,9 +195,9 @@ def layout() -> html.Div:
                                                                 "toImageButtonOptions": {
                                                                     "format": "png",
                                                                     "filename": "k_selection_plot",
-                                                                    "height": 1200,
-                                                                    "width": 1600,
-                                                                    "scale": 3
+                                                                    "width": 845,
+                                                                    "height": 537,
+                                                                    "scale": 1
                                                                 },
                                                                 "modeBarButtonsToRemove": [
                                                                     "lasso2d",
@@ -346,15 +346,14 @@ def layout() -> html.Div:
                                                         dcc.Graph(
                                                             id="consensus-matrix-plot",
                                                             responsive=False,
-                                                            figure={},
                                                             config={
                                                                 "displaylogo": False,
                                                                 "toImageButtonOptions": {
                                                                     "format": "png",
-                                                                    "filename": "consensus_matrix_heatmap",
-                                                                    "height": 1600,
-                                                                    "width": 1600,
-                                                                    "scale": 3
+                                                                    "filename": "consensus_matrix",
+                                                                    "width": 845,
+                                                                    "height": 537,
+                                                                    "scale": 1
                                                                 },
                                                                 "modeBarButtonsToRemove": [
                                                                     "lasso2d",
@@ -363,9 +362,8 @@ def layout() -> html.Div:
                                                                 ]
                                                             },
                                                             style={
-                                                                "borderRadius": "12px",
                                                                 "height": "750px",
-                                                                "width": "100%"
+                                                                "borderRadius": "12px"
                                                             }
                                                         ),
 

@@ -1270,36 +1270,6 @@ def register_callbacks(dash_app):
             uirevision="k-selection-fixed-size"
         )
 
-        if not k_status or not k_status.get("metrics"):
-            fig.update_layout(
-                title="k-selection graph",
-                **fixed_layout
-            )
-            fig.add_annotation(
-                text="Run the k-selection experiment to visualize the results.",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-                font=dict(size=16, color="#6c757d")
-            )
-            return fig
-
-        df = pd.DataFrame(k_status.get("metrics", []))
-
-        if df.empty or "k" not in df.columns:
-            fig.update_layout(
-                title="k-selection graph",
-                **fixed_layout
-            )
-            return fig
-
-        if not clustering_selection:
-            clustering_selection = []
-
-        suggested_k = k_status.get("suggested_k")
-
         method_labels = {
             "elbow": "Elbow Method - Reconstruction Error by k",
             "silhouette": "Silhouette Score by k",
@@ -1311,6 +1281,64 @@ def register_callbacks(dash_app):
             "silhouette": "Silhouette Score",
             "cophenetic": "Cophenetic Index"
         }
+
+        if not k_status or not k_status.get("metrics"):
+            fig.update_layout(
+                title={
+                    "text": method_labels.get(selected_method, "k-selection graph"),
+                    "x": 0.5,
+                    "xanchor": "center",
+                    "font": {"size": 22}
+                },
+                **fixed_layout
+            )
+
+            fig.add_annotation(
+                text="Run the k-selection experiment to visualize the results.",
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                showarrow=False,
+                font=dict(size=16, color="#6c757d")
+            )
+
+            return fig
+
+        df = pd.DataFrame(k_status.get("metrics", []))
+
+        if df.empty or "k" not in df.columns:
+            fig.update_layout(
+                title={
+                    "text": method_labels.get(selected_method, "k-selection graph"),
+                    "x": 0.5,
+                    "xanchor": "center",
+                    "font": {
+                        "size": 22,
+                        "color": "#2c3e50"
+                    }
+                },
+                xaxis_title="k",
+                yaxis_title=yaxis_labels.get(selected_method, "Metric value"),
+                hovermode="x unified",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                legend=dict(
+                    title="Metric / Initialization",
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.32,
+                    xanchor="center",
+                    x=0.5
+                ),
+                **fixed_layout
+            )
+            return fig
+
+        if not clustering_selection:
+            clustering_selection = []
+
+        suggested_k = k_status.get("suggested_k")
 
         metric_columns = {}
 
@@ -1343,9 +1371,15 @@ def register_callbacks(dash_app):
 
         if not metric_columns:
             fig.update_layout(
-                title=method_labels.get(selected_method, "k-selection graph"),
+                title={
+                    "text": method_labels.get(selected_method, "k-selection graph"),
+                    "x": 0.5,
+                    "xanchor": "center",
+                    "font": {"size": 22}
+                },
                 **fixed_layout
             )
+
             fig.add_annotation(
                 text="No compatible metric selected for the current clustering configuration.",
                 xref="paper",
@@ -1355,6 +1389,7 @@ def register_callbacks(dash_app):
                 showarrow=False,
                 font=dict(size=15, color="#6c757d")
             )
+
             return fig
 
         if "init" not in df.columns:
@@ -1398,7 +1433,15 @@ def register_callbacks(dash_app):
             )
 
         fig.update_layout(
-            title=method_labels.get(selected_method, "k-selection graph"),
+            title={
+                "text": method_labels.get(selected_method, "k-selection graph"),
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {
+                    "size": 22,
+                    "color": "#2c3e50"
+                }
+            },
             xaxis_title="k",
             yaxis_title=yaxis_labels.get(selected_method, "Metric value"),
             hovermode="x unified",
@@ -2136,7 +2179,6 @@ def register_callbacks(dash_app):
                 size=13,
                 color="#2c3e50"
             ),
-            uirevision="matrix-w-fixed-size"
         )
 
         fixed_layout_h = dict(
@@ -2149,7 +2191,6 @@ def register_callbacks(dash_app):
                 size=13,
                 color="#2c3e50"
             ),
-            uirevision="matrix-h-fixed-size"
         )
 
         if not nmf_results or not nmf_results.get("nmf_completed"):
@@ -5954,21 +5995,97 @@ None):
         Output("download-k-graph", "data"),
         Input("download-k-graph-btn", "n_clicks"),
         State("k-selection-graph", "figure"),
+        State("result-method-selector", "value"),
         prevent_initial_call=True
     )
-    def download_k_graph(n_clicks, figure):
+    def download_k_graph(n_clicks, figure, selected_method):
+
         if not n_clicks or not figure:
             raise PreventUpdate
+
+        method_titles = {
+            "elbow": "Elbow Method - Reconstruction Error by k",
+            "silhouette": "Silhouette Score by k",
+            "cophenetic": "Cophenetic Index by k"
+        }
+
+        filenames = {
+            "elbow": "elbow_method_reconstruction_error",
+            "silhouette": "silhouette_score_by_k",
+            "cophenetic": "cophenetic_index_by_k"
+        }
+
+        width = 845
+        height = 537
+
         fig = go.Figure(figure)
+
+        fig.update_layout(
+            title={
+                "text": method_titles.get(selected_method, "k-selection graph"),
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {
+                    "size": 24,
+                    "color": "#2c3e50",
+                    "family": "Poppins, Arial"
+                }
+            },
+            width=width,
+            height=height,
+            autosize=False,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(
+                l=70,
+                r=50,
+                t=90,
+                b=100
+            ),
+            font=dict(
+                family="Poppins, Arial",
+                size=13,
+                color="#2c3e50"
+            ),
+            legend=dict(
+                title="Metric / Initialization",
+                orientation="h",
+                yanchor="bottom",
+                y=-0.35,
+                xanchor="center",
+                x=0.5,
+                font=dict(size=11)
+            )
+        )
+
+        fig.update_xaxes(
+            title_font=dict(size=15),
+            tickfont=dict(size=12),
+            showgrid=True,
+            gridcolor="rgba(180,180,180,0.35)",
+            zeroline=False
+        )
+
+        fig.update_yaxes(
+            title_font=dict(size=15),
+            tickfont=dict(size=12),
+            showgrid=True,
+            gridcolor="rgba(180,180,180,0.35)",
+            zeroline=False
+        )
+
         image_bytes = fig.to_image(
             format="png",
-            width=1200,
-            height=700,
-            scale=2
+            width=width,
+            height=height,
+            scale=1
         )
+
+        filename = f"{filenames.get(selected_method, 'k_selection_graph')}.png"
+
         return dcc.send_bytes(
             lambda buffer: buffer.write(image_bytes),
-            "k_selection_graph.png"
+            filename
         )
 
 

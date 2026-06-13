@@ -134,9 +134,9 @@ def layout() -> html.Div:
                                                             "toImageButtonOptions": {
                                                                 "format": "png",
                                                                 "filename": "matrix_W_heatmap",
-                                                                "height": 1200,
-                                                                "width": 1600,
-                                                                "scale": 3
+                                                                "width": 845,
+                                                                "height": 728,
+                                                                "scale": 1
                                                             },
                                                             "modeBarButtonsToRemove": [
                                                                 "lasso2d",
@@ -200,9 +200,9 @@ def layout() -> html.Div:
                                                             "toImageButtonOptions": {
                                                                 "format": "png",
                                                                 "filename": "matrix_H_heatmap",
-                                                                "height": 1200,
-                                                                "width": 1600,
-                                                                "scale": 3
+                                                                "width": 840,
+                                                                "height": 528,
+                                                                "scale": 1
                                                             },
                                                             "modeBarButtonsToRemove": [
                                                                 "lasso2d",
